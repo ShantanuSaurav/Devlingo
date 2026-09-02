@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CodeQuest — Learn. Code. Build. Every day.</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Archivo:wght@500;600;700&family=Space+Grotesk:wght@500;600&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<script>
+  if (localStorage.getItem('cq-theme') === 'dark') {
+    document.documentElement.setAttribute('data-theme', 'dark');
+  }
+</script>
+</head>
+<body>
+
+<div class="grain" aria-hidden="true"></div>
+<div class="cursor-glow" id="cursorGlow" aria-hidden="true"></div>
+
+<!-- ============ NAV ============ -->
+<header class="nav">
+  <a href="#top" class="nav-mark">CQ</a>
+  <nav class="nav-links">
+    <a href="#journey">/paths</a>
+    <a href="#daily">/practice</a>
+    <a href="#how">/editor</a>
+    <div class="profile-menu">
+      <button class="profile-btn" id="profileBtn" aria-label="Profile">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+      </button>
+      <div class="profile-dropdown" id="profileDropdown">
+        <div class="dropdown-header">Settings</div>
+        <div class="dropdown-item">
+          <span>Dark Mode</span>
+          <label class="switch">
+            <input type="checkbox" id="themeToggle">
+            <span class="slider"></span>
+          </label>
+        </div>
+      </div>
+    </div>
+    <a href="#" class="nav-cta">/start →</a>
+  </nav>
+  <button class="nav-toggle" id="navToggle" aria-label="Toggle menu" aria-expanded="false">
+    <span></span><span></span>
+  </button>
+</header>
+
+<div class="nav-mobile" id="navMobile">
+  <a href="#journey">/paths</a>
+  <a href="#daily">/practice</a>
+  <a href="#how">/editor</a>
+  <a href="#" class="nav-cta">/start</a>
+</div>
+
+<main id="top">
+
+  <!-- ============ HERO ============ -->
+  <section class="hero">
+    <p class="hero-eyebrow">CodeQuest — a daily practice for developers</p>
+
+    <h1 class="hero-title">
+      <span class="line" data-line>Learn.</span>
+      <span class="line line-outline" data-line>Code.</span>
+      <span class="line" data-line>Build.</span>
+      <span class="line line-accent" data-line>Every day.</span>
+    </h1>
+
+    <div class="hero-foot">
+      <p class="hero-sub">Fifteen minutes, one problem, real code. No slides, no videos — a path built around the way developers actually learn.</p>
+      <div class="hero-actions">
+        <a href="#" class="btn btn-solid">Start learning</a>
+        <a href="#journey" class="btn btn-line">Explore the path</a>
+      </div>
+    </div>
+
+    <!-- Oversized code panel, bleeding off the grid -->
+    <div class="hero-panel-wrap" aria-hidden="true">
+      <div class="hero-panel" id="heroPanel">
+        <div class="hero-panel-bar">
+          <span class="dot dot-red"></span><span class="dot dot-yellow"></span><span class="dot dot-green"></span>
+          <span class="hero-panel-name">fix_the_bug.py</span>
+        </div>
+        <pre class="hero-panel-code"><code><span class="cm"># Fix the bug</span>
+<span class="kw">def</span> <span class="fn">greet</span>(name)<span class="err">:</span>
+    <span class="kw">return</span> <span class="str">"Hello "</span> + name</code></pre>
+        <div class="hero-panel-foot">
+          <span class="hero-panel-status">1 error found</span>
+          <button class="btn-solve">Solve →</button>
+        </div>
+      </div>
+      <div class="hero-stat-float">
+        <strong>80%</strong>
+        <span>today's progress</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ MARQUEE ============ -->
+  <div class="marquee" aria-hidden="true">
+    <div class="marquee-track">
+      <span>Python</span><span>·</span><span>JavaScript</span><span>·</span><span>Debugging</span><span>·</span><span>Git &amp; GitHub</span><span>·</span><span>Problem Solving</span><span>·</span><span>Web Development</span><span>·</span>
+      <span>Python</span><span>·</span><span>JavaScript</span><span>·</span><span>Debugging</span><span>·</span><span>Git &amp; GitHub</span><span>·</span><span>Problem Solving</span><span>·</span><span>Web Development</span><span>·</span>
+    </div>
+  </div>
+
+  <!-- ============ STATS ============ -->
+  <section class="stats">
+    <div class="stat">
+      <strong>10</strong>
+      <span>minutes a day is enough to move forward</span>
+    </div>
+    <div class="stat">
+      <strong>40+</strong>
+      <span>skills across languages, tools, and habits</span>
+    </div>
+    <div class="stat">
+      <strong>1:1</strong>
+      <span>a path shaped by your pace, not a syllabus</span>
+    </div>
+  </section>
+
+  <!-- ============ LEARNING JOURNEY ============ -->
+  <section class="journey" id="journey">
+    <div class="section-head">
+      <h2 class="section-title">Your path, staged</h2>
+      <p class="section-sub">Six stages. Each one unlocked by the last.</p>
+    </div>
+
+    <ol class="path-list">
+      <li class="path-row path-done">
+        <span class="path-index">01</span>
+        <span class="path-name">Programming Basics</span>
+        <span class="path-state">Completed</span>
+      </li>
+      <li class="path-row path-done">
+        <span class="path-index">02</span>
+        <span class="path-name">Python Fundamentals</span>
+        <span class="path-state">Completed</span>
+      </li>
+      <li class="path-row path-current">
+        <span class="path-index">03</span>
+        <span class="path-name">Problem Solving</span>
+        <span class="path-state">In progress</span>
+      </li>
+      <li class="path-row path-locked">
+        <span class="path-index">04</span>
+        <span class="path-name">Web Development</span>
+        <span class="path-state">Locked</span>
+      </li>
+      <li class="path-row path-locked">
+        <span class="path-index">05</span>
+        <span class="path-name">Backend Development</span>
+        <span class="path-state">Locked</span>
+      </li>
+      <li class="path-row path-locked">
+        <span class="path-index">06</span>
+        <span class="path-name">Build Real Projects</span>
+        <span class="path-state">Locked</span>
+      </li>
+    </ol>
+  </section>
+
+  <!-- ============ DAILY LOOP ============ -->
+  <section class="daily" id="daily">
+    <div class="section-head">
+      <h2 class="section-title">One loop, every day</h2>
+      <p class="section-sub">Repeated until it's a habit, not a task.</p>
+    </div>
+
+    <div class="loop-row">
+      <div class="loop-step">
+        <span class="loop-num">1</span>
+        <strong>Learn</strong>
+        <p>A new concept, explained plainly.</p>
+      </div>
+      <div class="loop-step">
+        <span class="loop-num">2</span>
+        <strong>Practice</strong>
+        <p>Real code, right in the browser.</p>
+      </div>
+      <div class="loop-step">
+        <span class="loop-num">3</span>
+        <strong>Debug</strong>
+        <p>Find what's broken. Fix it yourself.</p>
+      </div>
+      <div class="loop-step">
+        <span class="loop-num">4</span>
+        <strong>Build</strong>
+        <p>Apply it to something real.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ EDITOR SHOWCASE ============ -->
+  <section class="editor-section" id="how">
+    <div class="section-head">
+      <h2 class="section-title">Write real code, day one</h2>
+      <p class="section-sub">An editor and a problem worth solving. Nothing else.</p>
+    </div>
+
+    <div class="editor-grid">
+      <div class="editor-window">
+        <div class="editor-titlebar">
+          <span class="dot dot-red"></span><span class="dot dot-yellow"></span><span class="dot dot-green"></span>
+          <span class="editor-filename">journey.js</span>
+        </div>
+        <pre class="editor-code" id="editorCode"><code></code></pre>
+      </div>
+
+      <div class="result-panel">
+        <strong class="result-title">Challenge completed</strong>
+        <span class="result-xp">+50 XP</span>
+        <span class="result-streak">7 day streak</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ FEATURES — editorial index ============ -->
+  <section class="features">
+    <div class="section-head">
+      <h2 class="section-title">What's inside</h2>
+      <p class="section-sub">Built around how developers actually learn.</p>
+    </div>
+
+    <ol class="feature-index">
+      <li>
+        <span class="fi-num">01</span>
+        <span class="fi-name">Personalized learning</span>
+        <span class="fi-desc">Your journey adapts to your skills and pace.</span>
+      </li>
+      <li>
+        <span class="fi-num">02</span>
+        <span class="fi-name">Interactive lessons</span>
+        <span class="fi-desc">Learn by doing, not by watching.</span>
+      </li>
+      <li>
+        <span class="fi-num">03</span>
+        <span class="fi-name">Debugging challenges</span>
+        <span class="fi-desc">Learn how real developers solve problems.</span>
+      </li>
+      <li>
+        <span class="fi-num">04</span>
+        <span class="fi-name">Daily missions</span>
+        <span class="fi-desc">Build a consistent coding habit.</span>
+      </li>
+      <li>
+        <span class="fi-num">05</span>
+        <span class="fi-name">Skill tracking</span>
+        <span class="fi-desc">See exactly where you're improving.</span>
+      </li>
+      <li>
+        <span class="fi-num">06</span>
+        <span class="fi-name">AI learning assistant</span>
+        <span class="fi-desc">A nudge in the right direction when you're stuck.</span>
+      </li>
+    </ol>
+  </section>
+
+  <!-- ============ DASHBOARD PREVIEW ============ -->
+  <section class="dashboard">
+    <div class="section-head">
+      <h2 class="section-title">Every lesson moves a bar</h2>
+      <p class="section-sub">Watch your skills add up, day by day.</p>
+    </div>
+
+    <div class="dash-panel">
+      <div class="dash-level">
+        <span>Developer level</span>
+        <strong>12</strong>
+        <div class="level-track"><div class="level-fill" data-target="68"></div></div>
+        <span data-percent>68%</span>
+      </div>
+
+      <div class="skills">
+        <div class="skill-row">
+          <span class="skill-name">Python</span>
+          <div class="skill-track"><div class="skill-fill" data-target="90"></div></div>
+          <span data-percent>90%</span>
+        </div>
+        <div class="skill-row">
+          <span class="skill-name">JavaScript</span>
+          <div class="skill-track"><div class="skill-fill" data-target="70"></div></div>
+          <span data-percent>70%</span>
+        </div>
+        <div class="skill-row">
+          <span class="skill-name">Problem solving</span>
+          <div class="skill-track"><div class="skill-fill" data-target="60"></div></div>
+          <span data-percent>60%</span>
+        </div>
+        <div class="skill-row">
+          <span class="skill-name">Git &amp; GitHub</span>
+          <div class="skill-track"><div class="skill-fill" data-target="80"></div></div>
+          <span data-percent>80%</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ FINAL CTA ============ -->
+  <section class="final-cta">
+    <h2 class="final-cta-title">Your journey<br>begins today.</h2>
+    <p class="final-cta-sub">Stop wondering what to learn next.</p>
+    <a href="#" class="btn btn-solid btn-lg">Start your journey</a>
+  </section>
+
+</main>
+
+<!-- ============ FOOTER ============ -->
+<footer class="footer">
+  <div class="footer-top">
+    <span class="nav-mark">CQ</span>
+    <div class="footer-cols">
+      <div class="footer-col">
+        <strong>Product</strong>
+        <a href="#journey">Learning paths</a>
+        <a href="#daily">Challenges</a>
+        <a href="#">Progress</a>
+      </div>
+      <div class="footer-col">
+        <strong>Company</strong>
+        <a href="#">About</a>
+        <a href="#">Contact</a>
+      </div>
+      <div class="footer-col">
+        <strong>Social</strong>
+        <a href="#">GitHub</a>
+        <a href="#">LinkedIn</a>
+        <a href="#">Twitter</a>
+      </div>
+    </div>
+  </div>
+  <p class="footer-bottom">© 2026 CodeQuest. Built for curious developers.</p>
+</footer>
+
+<script src="script.js"></script>
+</body>
+</html>

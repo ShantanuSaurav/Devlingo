@@ -13,6 +13,7 @@
     document.documentElement.setAttribute('data-theme', 'dark');
   }
 </script>
+<script type="module" src="https://unpkg.com/@splinetool/viewer@1.9.82/build/spline-viewer.js"></script>
 </head>
 <body>
 
@@ -76,25 +77,9 @@
       </div>
     </div>
 
-    <!-- Oversized code panel, bleeding off the grid -->
-    <div class="hero-panel-wrap" aria-hidden="true">
-      <div class="hero-panel" id="heroPanel">
-        <div class="hero-panel-bar">
-          <span class="dot dot-red"></span><span class="dot dot-yellow"></span><span class="dot dot-green"></span>
-          <span class="hero-panel-name">fix_the_bug.py</span>
-        </div>
-        <pre class="hero-panel-code"><code><span class="cm"># Fix the bug</span>
-<span class="kw">def</span> <span class="fn">greet</span>(name)<span class="err">:</span>
-    <span class="kw">return</span> <span class="str">"Hello "</span> + name</code></pre>
-        <div class="hero-panel-foot">
-          <span class="hero-panel-status">1 error found</span>
-          <button class="btn-solve">Solve →</button>
-        </div>
-      </div>
-      <div class="hero-stat-float">
-        <strong>80%</strong>
-        <span>today's progress</span>
-      </div>
+    <!-- Spline 3D Robot -->
+    <div class="hero-spline-wrap" aria-hidden="true">
+      <spline-viewer url="https://prod.spline.design/6Wq1Q7YGyM-iab9i/scene.splinecode"></spline-viewer>
     </div>
   </section>
 

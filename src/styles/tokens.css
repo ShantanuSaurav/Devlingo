@@ -1,0 +1,52 @@
+/* ==========================================================================
+   CodeQuest — Tokens & Themes
+   ========================================================================== */
+:root {
+  --bg:        #FFFFFF;
+  --bg-raise:  #F5F5F7;
+  --ink:       #07070A;
+  --ink-dim:   #55555F;
+  --ink-faint: #8B8B93;
+  --accent:    #4839FF;
+  --accent-2:  #FFB020;
+  --danger:    #FF5A4E;
+  --ok:        #00B873;
+  --line:      rgba(7, 7, 10, 0.14);
+  --line-soft: rgba(7, 7, 10, 0.07);
+
+  --font-display: 'Archivo Black', 'Archivo', sans-serif;
+  --font-head: 'Archivo', sans-serif;
+  --font-label: 'Space Grotesk', sans-serif;
+  --font-body: 'Inter', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+
+  --max-w: 1240px;
+  --gut: clamp(1.25rem, 4vw, 3.5rem);
+
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --fast: 160ms;
+  --med: 400ms;
+}
+
+[data-theme="dark"] {
+  --bg:        #07070A;
+  --bg-raise:  #0E0E13;
+  --ink:       #F3F1EA;
+  --ink-dim:   #8B8B93;
+  --ink-faint: #55555F;
+  --accent:    #4839FF;
+  --accent-2:  #FFB020;
+  --danger:    #FF5A4E;
+  --ok:        #3ED8A8;
+  --line:      rgba(243, 241, 234, 0.14);
+  --line-soft: rgba(243, 241, 234, 0.07);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}

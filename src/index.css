@@ -1,0 +1,31 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme {
+  --color-primary: var(--primary);
+  --color-primary-dark: var(--primary-dark);
+  --color-secondary: var(--secondary);
+  --color-warning: #ffb300;
+  --color-error: #ff3b30;
+  --font-sans: "Inter", system-ui, -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono", "Fira Code", monospace;
+}
+
+@layer base {
+  body {
+    --primary: #16a30b;
+    --primary-dark: #128009;
+    --secondary: #0284c7;
+    background-color: #ffffff;
+    color: #0f172a;
+    transition: background-color 0.3s ease, color 0.3s ease;
+  }
+  .dark body {
+    --primary: #39ff14;
+    --primary-dark: #2ce60d;
+    --secondary: #00e5ff;
+    background-color: #0d1117;
+    color: #e6edf3;
+  }
+}

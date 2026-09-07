@@ -1,32 +1,31 @@
-# React + TypeScript + Vite
+# Devlingo 🚀
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+**Devlingo** is the professional developer training environment. Master programming through interactive challenges, real-world projects, and a structured skill tree with an engaging, gamified experience. 
 
-Currently, two official plugins are available:
+### 🌟 Live Demo
+**[Visit Devlingo on Vercel](https://devlingo-sand.vercel.app/)**
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+---
 
-## React Compiler
+### Features
+- **Dark & Light Mode**: A beautifully crafted UI that respects your viewing preferences.
+- **Interactive Skill Roadmap**: Visualize your learning journey from frontend basics to advanced system design.
+- **Daily Challenges**: Keep your coding skills sharp with bite-sized daily problems.
+- **Gamification**: Earn XP, build streaks, and level up your developer profile.
+- **Authentication**: Seamless login experience powered by Supabase.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+### Tech Stack
+- **Frontend**: React 18, TypeScript, Vite
+- **Styling**: Tailwind CSS v4, Framer Motion
+- **Authentication**: Supabase
+- **Icons**: Lucide React
+- **Deployment**: Vercel
 
-## Expanding the Oxlint configuration
+### Running Locally
+```bash
+# Install dependencies
+npm install
 
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+# Start the development server
+npm run dev
 ```
-
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.

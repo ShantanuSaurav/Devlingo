@@ -1,414 +1,514 @@
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useGame } from '../context/GameContext';
 import { Challenge, ExecutionResult } from '../types';
+import { Answer, checkAnswer, emptyAnswer, isAnswerComplete } from '../lib/checkAnswer';
+import { CodeBlock } from './CodeBlock';
+import { OptionsChallenge } from './challenges/OptionsChallenge';
+import { FillBlankChallenge } from './challenges/FillBlankChallenge';
+import { PseudocodeOrderChallenge } from './challenges/PseudocodeOrderChallenge';
+import { CodeChallenge } from './challenges/CodeChallenge';
+
+const TYPE_LABELS: Record<Challenge['type'], string> = {
+  quiz: 'Multiple choice',
+  output_prediction: 'Predict the output',
+  multi_select: 'Select all that apply',
+  fill_blank: 'Fill in the blanks',
+  pseudocode_order: 'Order the steps',
+  code_runner: 'Write the code',
+  debug: 'Find the bug'
+};
+
+const isCodeType = (c: Challenge) => c.type === 'code_runner' || c.type === 'debug';
 
 export const PracticeModal: React.FC = () => {
   const {
-    activeChallengeStage,
+    activeStage,
+    activeChallengeIndex,
     closePractice,
+    goToChallenge,
     completeChallenge,
-    executeCode
+    executeCode,
+    stats
   } = useGame();
 
-  const [currentIndex, setCurrentIndex] = useState(0);
-  // Quiz state
-  const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
-  const [hasChecked, setHasChecked] = useState(false);
-  const [isCorrect, setIsCorrect] = useState(false);
-  const [isFinished, setIsFinished] = useState(false);
+  const challenges = activeStage?.challenges ?? [];
+  const challenge: Challenge | undefined = challenges[activeChallengeIndex];
 
-  // Code Runner state
-  const [userCode, setUserCode] = useState('');
+  /* ------------------------------------------------------------ per-challenge state */
+  const [answer, setAnswer] = useState<Answer>(null);
+  const [checked, setChecked] = useState(false);
+  const [isCorrect, setIsCorrect] = useState(false);
+  const [attempts, setAttempts] = useState(0);
+  const [revealedHints, setRevealedHints] = useState(0);
+  const [showSolution, setShowSolution] = useState(false);
+
+  const [code, setCode] = useState('');
   const [isRunning, setIsRunning] = useState(false);
+  const [progressMessage, setProgressMessage] = useState('');
   const [execResult, setExecResult] = useState<ExecutionResult | null>(null);
 
-  const challenges = activeChallengeStage?.challenges || [];
-  const currentChallenge: Challenge | undefined = challenges[currentIndex];
+  const [finished, setFinished] = useState(false);
+  const [sessionXp, setSessionXp] = useState(0);
+  const [sessionSolved, setSessionSolved] = useState<string[]>([]);
 
-  // Reset state whenever a stage is opened
-  useEffect(() => {
-    setCurrentIndex(0);
-    setIsFinished(false);
-    setSelectedIndex(null);
-    setHasChecked(false);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const bodyRef = useRef<HTMLDivElement>(null);
+
+  /** Wipe everything that belongs to a single challenge. */
+  const resetForChallenge = useCallback((next: Challenge | undefined) => {
+    setAnswer(next ? emptyAnswer(next) : null);
+    setChecked(false);
     setIsCorrect(false);
+    setAttempts(0);
+    setRevealedHints(0);
+    setShowSolution(false);
     setExecResult(null);
-  }, [activeChallengeStage]);
+    setIsRunning(false);
+    setProgressMessage('');
+    setCode(next && isCodeType(next) ? next.starterCode ?? '' : '');
+  }, []);
 
-  // Reset challenge interaction state when switching between challenges inside the stage
+  // Keyed on the id, not the object: a new stage array must not wipe answers.
+  const challengeId = challenge?.id;
   useEffect(() => {
-    setSelectedIndex(null);
-    setHasChecked(false);
-    setIsCorrect(false);
-    setExecResult(null);
+    resetForChallenge(challenge);
+    bodyRef.current?.scrollTo({ top: 0 });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [challengeId, resetForChallenge]);
 
-    if (currentChallenge?.type === 'code_runner') {
-      setUserCode(currentChallenge.starterCode || '');
-    } else {
-      setUserCode('');
-    }
-  }, [currentIndex, currentChallenge]);
-
-  // Handle ESC key to close modal
+  // A fresh stage starts a fresh session summary.
+  const stageId = activeStage?.id;
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        closePractice();
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [closePractice]);
+    setFinished(false);
+    setSessionXp(0);
+    setSessionSolved([]);
+  }, [stageId]);
 
-  if (!activeChallengeStage) return null;
+  /* ------------------------------------------------------------------ actions */
 
-  const progressPercent = challenges.length > 0 ? ((currentIndex + (isFinished ? 1 : 0)) / challenges.length) * 100 : 0;
+  const advance = useCallback(() => {
+    if (activeChallengeIndex + 1 < challenges.length) goToChallenge(activeChallengeIndex + 1);
+    else setFinished(true);
+  }, [activeChallengeIndex, challenges.length, goToChallenge]);
 
-  // Quiz check
-  const handleCheckQuiz = () => {
-    if (selectedIndex === null || !currentChallenge) return;
+  const award = useCallback(
+    async (target: Challenge, usedAttempts: number) => {
+      const xp = await completeChallenge(target, { attempts: usedAttempts, hintsUsed: revealedHints });
+      setSessionXp((prev) => prev + xp);
+      setSessionSolved((prev) => (prev.includes(target.id) ? prev : [...prev, target.id]));
+    },
+    [completeChallenge, revealedHints]
+  );
 
-    const correct = selectedIndex === currentChallenge.correctIndex;
+  const handleCheck = useCallback(async () => {
+    if (!challenge || checked) return;
+    const nextAttempts = attempts + 1;
+    setAttempts(nextAttempts);
+
+    const correct = checkAnswer(challenge, answer);
     setIsCorrect(correct);
-    setHasChecked(true);
+    setChecked(true);
+    if (correct) await award(challenge, nextAttempts);
+  }, [challenge, checked, attempts, answer, award]);
 
-    if (correct) {
-      completeChallenge(currentChallenge);
-    }
-  };
-
-  // Code Runner execution
-  const handleRunCode = async () => {
-    if (!currentChallenge) return;
+  const handleRun = useCallback(async () => {
+    if (!challenge || isRunning) return;
     setIsRunning(true);
+    setProgressMessage('');
     setExecResult(null);
+
+    const nextAttempts = attempts + 1;
+    setAttempts(nextAttempts);
 
     try {
-      const res = await executeCode(
-        userCode,
-        currentChallenge.language || 'javascript',
-        currentChallenge.entryFunction,
-        currentChallenge.testCases || []
+      const result = await executeCode(
+        code,
+        challenge.language,
+        challenge.entryFunction,
+        challenge.testCases ?? [],
+        { onProgress: setProgressMessage }
       );
-      setExecResult(res);
-
-      if (res.status === 'passed') {
-        setIsCorrect(true);
-        setHasChecked(true);
-        completeChallenge(currentChallenge);
-      } else {
-        setIsCorrect(false);
-        setHasChecked(true);
-      }
+      setExecResult(result);
+      const passed = result.status === 'passed';
+      setIsCorrect(passed);
+      setChecked(true);
+      if (passed) await award(challenge, nextAttempts);
     } catch (err: any) {
       setExecResult({
         status: 'error',
-        stderr: err.message || 'Execution error'
+        stderr: err?.message ?? String(err),
+        testResults: []
       });
-      setHasChecked(true);
+      setChecked(true);
       setIsCorrect(false);
     } finally {
       setIsRunning(false);
+      setProgressMessage('');
     }
-  };
+  }, [challenge, isRunning, attempts, code, executeCode, award]);
 
-  const handleNext = () => {
-    if (currentIndex + 1 < challenges.length) {
-      setCurrentIndex(prev => prev + 1);
-      setSelectedIndex(null);
-      setHasChecked(false);
-      setIsCorrect(false);
-      setExecResult(null);
-    } else {
-      setIsFinished(true);
+  /**
+   * Changing an answer after a wrong check clears the red highlighting, so the
+   * feedback on screen always describes the answer currently selected.
+   */
+  const handleAnswer = useCallback(
+    (next: Answer) => {
+      setAnswer(next);
+      if (checked && !isCorrect) {
+        setChecked(false);
+      }
+    },
+    [checked, isCorrect]
+  );
+
+  const handleTryAgain = useCallback(() => {
+    setChecked(false);
+    setIsCorrect(false);
+    // Keep what they typed for code and blanks; clear a wrong single choice so
+    // the highlighted answer does not linger.
+    if (challenge && (challenge.type === 'quiz' || challenge.type === 'output_prediction')) {
+      setAnswer(null);
     }
-  };
+  }, [challenge]);
+
+  const restartStage = useCallback(() => {
+    setFinished(false);
+    setSessionXp(0);
+    setSessionSolved([]);
+    goToChallenge(0);
+  }, [goToChallenge]);
+
+  /* -------------------------------------------------------------- keyboard */
+
+  useEffect(() => {
+    if (!activeStage) return;
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      const typing =
+        target &&
+        (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT');
+
+      if (e.key === 'Escape') {
+        closePractice();
+        return;
+      }
+
+      if (typing) return;
+
+      // Number keys pick an option on choice-style challenges.
+      if (!checked && challenge && !isCodeType(challenge) && /^[1-9]$/.test(e.key)) {
+        const index = Number(e.key) - 1;
+        if (challenge.options && index < challenge.options.length) {
+          e.preventDefault();
+          if (challenge.type === 'multi_select') {
+            const current = new Set((answer as number[]) ?? []);
+            if (current.has(index)) current.delete(index);
+            else current.add(index);
+            setAnswer([...current].sort((a, b) => a - b));
+          } else {
+            setAnswer(index);
+          }
+        }
+        return;
+      }
+
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        if (finished) return;
+        if (checked && isCorrect) advance();
+        else if (checked) handleTryAgain();
+        else if (challenge && isCodeType(challenge)) handleRun();
+        else if (challenge && isAnswerComplete(challenge, answer)) handleCheck();
+      }
+    };
+
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [
+    activeStage,
+    challenge,
+    answer,
+    checked,
+    isCorrect,
+    finished,
+    closePractice,
+    advance,
+    handleCheck,
+    handleRun,
+    handleTryAgain
+  ]);
+
+  // Focus the dialog so screen readers announce it and Escape works at once.
+  useEffect(() => {
+    if (activeStage) dialogRef.current?.focus();
+  }, [activeStage]);
+
+  /* ----------------------------------------------------------------- render */
+
+  const solvedInStage = useMemo(
+    () => challenges.filter((c) => stats.completedChallenges.includes(c.id)).length,
+    [challenges, stats.completedChallenges]
+  );
+
+  if (!activeStage || !challenge) return null;
+
+  const hints = challenge.hints ?? [];
+  const canCheck = isAnswerComplete(challenge, answer);
+  const alreadySolved = stats.completedChallenges.includes(challenge.id);
+  const percent = Math.round(((activeChallengeIndex + (checked && isCorrect ? 1 : 0)) / challenges.length) * 100);
 
   return (
-    <div className="modal-overlay" onClick={closePractice}>
-      <div className="modal-card" style={{ maxWidth: currentChallenge?.type === 'code_runner' ? '760px' : '680px' }} onClick={(e) => e.stopPropagation()}>
-        {/* Header */}
+    <div className="modal-overlay" onMouseDown={closePractice}>
+      <div
+        className={`modal-card practice-card ${isCodeType(challenge) ? 'is-wide' : ''}`.trim()}
+        onMouseDown={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-label={`${activeStage.name}: ${challenge.title}`}
+        ref={dialogRef}
+        tabIndex={-1}
+      >
+        {/* ------------------------------------------------------------ head */}
         <div className="modal-header">
-          <div>
+          <div className="modal-header-main">
             <div className="modal-stage-badge">
-              Stage {activeChallengeStage.index} · {activeChallengeStage.name}
+              <span aria-hidden="true">{activeStage.icon}</span> Stage {activeStage.index} ·{' '}
+              {activeStage.name}
             </div>
-            <h3 className="modal-title">
-              {isFinished ? 'Stage Cleared!' : currentChallenge?.title}
-            </h3>
+            <h3 className="modal-title">{finished ? 'Stage complete' : challenge.title}</h3>
+            {!finished && (
+              <div className="modal-meta">
+                <span className={`pill pill-${challenge.difficulty}`}>{challenge.difficulty}</span>
+                <span className="pill pill-type">{TYPE_LABELS[challenge.type]}</span>
+                <span className="pill pill-lang">{challenge.language}</span>
+                {alreadySolved && <span className="pill pill-done">solved before</span>}
+              </div>
+            )}
           </div>
-          <button
-            type="button"
-            className="modal-close-btn"
-            onClick={closePractice}
-            aria-label="Close practice modal"
-          >
-            &times;
+          <button type="button" className="modal-close-btn" onClick={closePractice} aria-label="Close">
+            ×
           </button>
         </div>
 
-        {/* Progress bar */}
-        <div className="modal-progress">
-          <div
-            className="modal-progress-bar"
-            style={{ width: `${progressPercent}%` }}
-          />
+        {/* -------------------------------------------------------- progress */}
+        <div className="modal-progress" role="progressbar" aria-valuenow={percent} aria-valuemin={0} aria-valuemax={100}>
+          <div className="modal-progress-bar" style={{ width: `${percent}%` }} />
         </div>
 
-        {/* Body */}
-        <div className="modal-body">
-          {isFinished ? (
+        {!finished && (
+          <nav className="challenge-dots" aria-label="Challenges in this stage">
+            {challenges.map((c, i) => {
+              const done = stats.completedChallenges.includes(c.id);
+              return (
+                <button
+                  key={c.id}
+                  type="button"
+                  className={`dot ${i === activeChallengeIndex ? 'is-active' : ''} ${done ? 'is-done' : ''}`.trim()}
+                  onClick={() => goToChallenge(i)}
+                  title={`${i + 1}. ${c.title}${done ? ' (solved)' : ''}`}
+                  aria-label={`Go to challenge ${i + 1}: ${c.title}`}
+                  aria-current={i === activeChallengeIndex}
+                />
+              );
+            })}
+          </nav>
+        )}
+
+        {/* ------------------------------------------------------------ body */}
+        <div className="modal-body" ref={bodyRef}>
+          {finished ? (
             <div className="celebration-view">
-              <div className="celebration-icon">🏆</div>
-              <h2 className="celebration-title">Lesson Completed!</h2>
-              <p style={{ maxWidth: '44ch' }}>
-                You just leveled up your developer skills. Keep the daily streak alive!
+              <div className="celebration-icon" aria-hidden="true">
+                🏆
+              </div>
+              <h2 className="celebration-title">{activeStage.name} cleared</h2>
+              <p>
+                You solved {sessionSolved.length} of {challenges.length} challenges this session.
               </p>
 
               <div className="celebration-stats">
                 <div className="celebration-stat-box">
-                  <strong>+{(challenges.reduce((sum, c) => sum + c.xpReward, 0))}</strong>
-                  <span>Total XP</span>
+                  <strong>+{sessionXp}</strong>
+                  <span>XP earned</span>
                 </div>
                 <div className="celebration-stat-box">
-                  <strong>100%</strong>
-                  <span>Accuracy</span>
+                  <strong>
+                    {solvedInStage}/{challenges.length}
+                  </strong>
+                  <span>Stage solved</span>
+                </div>
+                <div className="celebration-stat-box">
+                  <strong>{stats.streak}</strong>
+                  <span>Day streak</span>
                 </div>
               </div>
 
-              <div style={{ display: 'flex', gap: '0.8rem', justifyContent: 'center', flexWrap: 'wrap' }}>
-                <button
-                  type="button"
-                  className="btn btn-line btn-lg"
-                  onClick={() => {
-                    setCurrentIndex(0);
-                    setIsFinished(false);
-                    setSelectedIndex(null);
-                    setHasChecked(false);
-                    setIsCorrect(false);
-                    setExecResult(null);
-                  }}
-                >
-                  Replay Stage ↻
+              <div className="celebration-actions">
+                <button type="button" className="btn btn-line btn-lg" onClick={restartStage}>
+                  Replay stage
                 </button>
-                <button
-                  type="button"
-                  className="btn btn-solid btn-lg"
-                  onClick={closePractice}
-                >
-                  Back to Path
+                <button type="button" className="btn btn-solid btn-lg" onClick={closePractice}>
+                  Back to the path
                 </button>
               </div>
             </div>
           ) : (
             <>
-              {currentChallenge && (
-                <>
-                  <p className="challenge-prompt">{currentChallenge.prompt}</p>
+              <p className="challenge-prompt">{challenge.prompt}</p>
 
-                  {/* Mode 1: Online Compiler Code Runner */}
-                  {currentChallenge.type === 'code_runner' ? (
-                    <div className="challenge-input-area">
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                        <span style={{ fontSize: '0.82rem', fontFamily: 'var(--font-mono)', color: 'var(--accent-2)' }}>
-                          Language: {currentChallenge.language || 'javascript'} (Compiler Sandbox)
-                        </span>
-                        {execResult?.time && (
-                          <span style={{ fontSize: '0.8rem', fontFamily: 'var(--font-mono)', color: 'var(--ink-faint)' }}>
-                            Runtime: {execResult.time}
-                          </span>
-                        )}
-                      </div>
+              {/* The snippet, always in full. fill_blank renders its own copy
+                  because the inputs live inside it. */}
+              {challenge.codeSnippet && challenge.type !== 'fill_blank' && (
+                <CodeBlock code={challenge.codeSnippet} language={challenge.language} />
+              )}
 
-                      <textarea
-                        className="challenge-textarea"
-                        value={userCode}
-                        onChange={(e) => setUserCode(e.target.value)}
-                        placeholder="// Write your code solution here..."
-                        rows={9}
-                        spellCheck={false}
-                      />
+              {challenge.type === 'fill_blank' && (
+                <FillBlankChallenge
+                  challenge={challenge}
+                  answer={answer}
+                  onAnswer={handleAnswer}
+                  checked={checked}
+                  locked={checked && isCorrect}
+                />
+              )}
 
-                      {/* Test Cases display */}
-                      {currentChallenge.testCases && (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '0.5rem' }}>
-                          <span style={{ fontSize: '0.85rem', fontFamily: 'var(--font-label)', color: 'var(--ink-dim)' }}>
-                            Test Assertions:
-                          </span>
-                          <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap' }}>
-                            {currentChallenge.testCases.map((tc, idx) => {
-                              const tr = execResult?.testResults?.[idx];
-                              const statusColor = tr ? (tr.passed ? 'var(--ok)' : 'var(--danger)') : 'var(--ink-faint)';
-                              return (
-                                <div
-                                  key={idx}
-                                  style={{
-                                    background: 'var(--bg-raise)',
-                                    border: `1px solid ${tr ? statusColor : 'var(--line)'}`,
-                                    borderRadius: '4px',
-                                    padding: '0.4rem 0.75rem',
-                                    fontFamily: 'var(--font-mono)',
-                                    fontSize: '0.82rem'
-                                  }}
-                                >
-                                  <span>Case {idx + 1}: </span>
-                                  <code>{tc.input}</code> → <strong>{tc.expected}</strong>
-                                  {tr && <span style={{ marginLeft: '6px', color: statusColor }}>{tr.passed ? '✓' : '✗'}</span>}
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      )}
+              {challenge.type === 'pseudocode_order' && (
+                <PseudocodeOrderChallenge
+                  challenge={challenge}
+                  answer={answer}
+                  onAnswer={handleAnswer}
+                  checked={checked}
+                  locked={checked && isCorrect}
+                />
+              )}
 
-                      {/* Console stdout / stderr output */}
-                      {execResult && (
-                        <div style={{
-                          background: 'var(--bg-raise)',
-                          border: '1px solid var(--line)',
-                          borderRadius: '4px',
-                          padding: '0.75rem 1rem',
-                          marginTop: '0.5rem',
-                          fontFamily: 'var(--font-mono)',
-                          fontSize: '0.85rem'
-                        }}>
-                          {execResult.stderr ? (
-                            <div style={{ color: 'var(--danger)', whiteSpace: 'pre-wrap' }}>
-                              {execResult.stderr}
-                            </div>
-                          ) : (
-                            <div style={{ color: 'var(--ok)' }}>
-                              {execResult.stdout || '✓ All test cases executed successfully.'}
-                            </div>
-                          )}
-                        </div>
-                      )}
+              {(challenge.type === 'quiz' ||
+                challenge.type === 'output_prediction' ||
+                challenge.type === 'multi_select') && (
+                <OptionsChallenge
+                  challenge={challenge}
+                  answer={answer}
+                  onAnswer={handleAnswer}
+                  checked={checked}
+                  locked={checked && isCorrect}
+                />
+              )}
+
+              {isCodeType(challenge) && (
+                <CodeChallenge
+                  challenge={challenge}
+                  code={code}
+                  onCodeChange={setCode}
+                  onRun={handleRun}
+                  isRunning={isRunning}
+                  progressMessage={progressMessage}
+                  result={execResult}
+                  locked={checked && isCorrect}
+                  showSolution={showSolution}
+                  onReset={() => {
+                    setCode(challenge.starterCode ?? '');
+                    setExecResult(null);
+                  }}
+                />
+              )}
+
+              {/* ------------------------------------------------------ hints */}
+              {hints.length > 0 && (
+                <div className="hint-area">
+                  {hints.slice(0, revealedHints).map((hint, i) => (
+                    <div className="hint-card" key={i}>
+                      <span className="hint-index">Hint {i + 1}</span>
+                      <span>{hint}</span>
                     </div>
-                  ) : (
-                    /* Mode 2: Quiz / Syntax Challenge */
-                    <>
-                      {currentChallenge.codeSnippet && (
-                        <pre className="challenge-code-preview">
-                          <code>{currentChallenge.codeSnippet}</code>
-                        </pre>
-                      )}
-
-                      {currentChallenge.options && (
-                        <div className="challenge-options">
-                          {currentChallenge.options.map((option, idx) => {
-                            let btnClass = 'option-btn';
-                            if (selectedIndex === idx) btnClass += ' selected';
-                            if (hasChecked) {
-                              if (idx === currentChallenge.correctIndex) {
-                                btnClass += ' correct';
-                              } else if (selectedIndex === idx && !isCorrect) {
-                                btnClass += ' incorrect';
-                              }
-                            }
-
-                            const letter = String.fromCharCode(65 + idx);
-
-                            return (
-                              <button
-                                key={idx}
-                                type="button"
-                                className={btnClass}
-                                disabled={hasChecked && isCorrect}
-                                onClick={() => {
-                                  if (!hasChecked) {
-                                    setSelectedIndex(idx);
-                                  }
-                                }}
-                              >
-                                <span className="option-letter">{letter}</span>
-                                <span>{option}</span>
-                              </button>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </>
+                  ))}
+                  {revealedHints < hints.length && !(checked && isCorrect) && (
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-sm"
+                      onClick={() => setRevealedHints((n) => n + 1)}
+                    >
+                      Show a hint ({hints.length - revealedHints} left) · costs 10% of the XP
+                    </button>
                   )}
+                </div>
+              )}
 
-                  {/* Feedback explanation banner */}
-                  {hasChecked && (
-                    <div className={`feedback-banner ${isCorrect ? 'correct' : 'incorrect'}`}>
-                      <span className="feedback-icon">{isCorrect ? '✓' : '✗'}</span>
-                      <div>
-                        <strong>{isCorrect ? 'All Tests Passed! Excellent.' : 'Not quite yet.'}</strong>{' '}
-                        <span>{currentChallenge.explanation}</span>
-                      </div>
-                    </div>
-                  )}
-                </>
+              {/* --------------------------------------------------- feedback */}
+              {checked && (
+                <div className={`feedback-banner ${isCorrect ? 'correct' : 'incorrect'}`} role="status">
+                  <span className="feedback-icon" aria-hidden="true">
+                    {isCorrect ? '✓' : '✗'}
+                  </span>
+                  <div>
+                    <strong>
+                      {isCorrect
+                        ? attempts === 1 && revealedHints === 0
+                          ? 'Correct, first try.'
+                          : 'Correct.'
+                        : 'Not quite.'}
+                    </strong>{' '}
+                    <span>{isCorrect || attempts >= 2 ? challenge.explanation : 'Have another look.'}</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Only offered once they have genuinely tried. */}
+              {isCodeType(challenge) && !isCorrect && attempts >= 2 && challenge.solutionCode && (
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm"
+                  onClick={() => setShowSolution((s) => !s)}
+                >
+                  {showSolution ? 'Hide the solution' : 'Show me the solution'}
+                </button>
               )}
             </>
           )}
         </div>
 
-        {/* Footer */}
-        {!isFinished && (
+        {/* ---------------------------------------------------------- footer */}
+        {!finished && (
           <div className="modal-footer">
-            <span className="challenge-xp-reward">
-              ⚡ +{currentChallenge?.xpReward} XP
-            </span>
+            <div className="footer-left">
+              <span className="challenge-xp-reward">+{challenge.xpReward} XP</span>
+              <span className="footer-count">
+                {activeChallengeIndex + 1} of {challenges.length}
+              </span>
+            </div>
 
-            <div>
-              {currentChallenge?.type === 'code_runner' ? (
-                <div>
-                  {!isCorrect ? (
-                    <button
-                      type="button"
-                      className="btn btn-solid"
-                      disabled={isRunning}
-                      onClick={handleRunCode}
-                    >
-                      {isRunning ? 'Compiling in Sandbox...' : 'Run Code & Tests'}
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      className="btn btn-solid"
-                      onClick={handleNext}
-                    >
-                      {currentIndex + 1 < challenges.length ? 'Next Challenge →' : 'Complete Lesson →'}
-                    </button>
-                  )}
-                </div>
+            <div className="footer-actions">
+              {activeChallengeIndex > 0 && (
+                <button
+                  type="button"
+                  className="btn btn-line"
+                  onClick={() => goToChallenge(activeChallengeIndex - 1)}
+                >
+                  Back
+                </button>
+              )}
+
+              {checked && isCorrect ? (
+                <button type="button" className="btn btn-solid" onClick={advance}>
+                  {activeChallengeIndex + 1 < challenges.length ? 'Next challenge →' : 'Finish stage →'}
+                </button>
+              ) : checked ? (
+                <>
+                  <button type="button" className="btn btn-line" onClick={advance}>
+                    Skip
+                  </button>
+                  <button type="button" className="btn btn-solid" onClick={handleTryAgain}>
+                    Try again
+                  </button>
+                </>
+              ) : isCodeType(challenge) ? (
+                <button type="button" className="btn btn-solid" disabled={isRunning} onClick={handleRun}>
+                  {isRunning ? 'Running…' : 'Run tests'}
+                </button>
               ) : (
-                /* Quiz Footer */
-                <div>
-                  {!hasChecked ? (
-                    <button
-                      type="button"
-                      className="btn btn-solid"
-                      disabled={selectedIndex === null}
-                      onClick={handleCheckQuiz}
-                      style={{ opacity: selectedIndex === null ? 0.5 : 1 }}
-                    >
-                      Check Answer
-                    </button>
-                  ) : isCorrect ? (
-                    <button
-                      type="button"
-                      className="btn btn-solid"
-                      onClick={handleNext}
-                    >
-                      {currentIndex + 1 < challenges.length ? 'Next Challenge →' : 'Complete Lesson →'}
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      className="btn btn-line"
-                      onClick={() => {
-                        setHasChecked(false);
-                        setSelectedIndex(null);
-                      }}
-                    >
-                      Try Again
-                    </button>
-                  )}
-                </div>
+                <button type="button" className="btn btn-solid" disabled={!canCheck} onClick={handleCheck}>
+                  Check answer
+                </button>
               )}
             </div>
           </div>

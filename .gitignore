@@ -19,9 +19,15 @@ dist-ssr
 .vscode/*
 !.vscode/extensions.json
 .idea
+.claude/
 .DS_Store
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
+
+# Local API server state — user accounts, password hashes and the signing key
+server/data/
+# esbuild output the server regenerates on demand
+server/generated/

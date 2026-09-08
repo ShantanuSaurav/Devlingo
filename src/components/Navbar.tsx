@@ -1,5 +1,6 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useGame } from '../context/GameContext';
+import { levelProgress } from '../lib/leveling';
 
 export const Navbar: React.FC = () => {
   const {
@@ -7,6 +8,7 @@ export const Navbar: React.FC = () => {
     toggleTheme,
     stats,
     user,
+    serverStatus,
     openAuthModal,
     openSubModal,
     openPractice,
@@ -14,244 +16,267 @@ export const Navbar: React.FC = () => {
     logout
   } = useGame();
 
-  const [isMobileOpen, setIsMobileOpen] = useState(false);
-  const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [isMobileOpen, setMobileOpen] = useState(false);
+  const [isProfileOpen, setProfileOpen] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
+  const [confirmingReset, setConfirmingReset] = useState(false);
 
-  // Close profile dropdown when clicking outside
   useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
+    if (!isProfileOpen) return;
+    const onPointerDown = (e: MouseEvent) => {
       if (profileRef.current && !profileRef.current.contains(e.target as Node)) {
-        setIsProfileOpen(false);
+        setProfileOpen(false);
+        setConfirmingReset(false);
       }
     };
-    document.addEventListener('click', handleClickOutside);
-    return () => document.removeEventListener('click', handleClickOutside);
-  }, []);
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setProfileOpen(false);
+        setConfirmingReset(false);
+      }
+    };
+    document.addEventListener('mousedown', onPointerDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onPointerDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [isProfileOpen]);
+
+  const level = levelProgress(stats.xp);
+  const closeMobile = () => setMobileOpen(false);
 
   return (
     <>
       <header className="nav">
-        <a href="#top" className="nav-mark">CQ</a>
+        <a href="#top" className="nav-mark">
+          CQ
+        </a>
 
         <div className="nav-badges">
           <span className="streak-pill" title={`${stats.streak} day streak`}>
             🔥 {stats.streak}d
           </span>
-          <span className="xp-pill" title={`${stats.xp} Total XP`}>
+          <span className="xp-pill" title={`${stats.xp} total XP`}>
             ⚡ {stats.xp} XP
           </span>
-          {stats.isPremium && (
-            <span
-              style={{
-                fontFamily: 'var(--font-mono)',
-                fontSize: '0.78rem',
-                padding: '0.2rem 0.55rem',
-                borderRadius: '4px',
-                background: 'rgba(0, 184, 115, 0.15)',
-                color: 'var(--ok)',
-                border: '1px solid var(--ok)',
-                fontWeight: 600
-              }}
-            >
-              PRO
-            </span>
-          )}
+          <span className="lvl-pill" title={`${level.percent}% to level ${level.level + 1}`}>
+            Lv {level.level}
+          </span>
+          {stats.isPremium && <span className="pro-pill">PRO</span>}
         </div>
 
         <nav className="nav-links">
-          <a href="#journey">/paths</a>
-          <button 
-            type="button" 
-            className="nav-link-btn" 
-            onClick={() => openPractice()}
-          >
-            /practice
-          </button>
-          <a href="#compiler">/compiler</a>
+          <a href="#journey">/path</a>
+          <a href="#library">/challenges</a>
+          <a href="#compiler">/playground</a>
 
           {!stats.isPremium && (
-            <button
-              type="button"
-              className="nav-link-btn"
-              style={{ color: 'var(--accent-2)', fontWeight: 600 }}
-              onClick={openSubModal}
-            >
-              /pro ⚡
+            <button type="button" className="nav-link-btn nav-link-pro" onClick={openSubModal}>
+              /pro
             </button>
           )}
 
-          {/* User / Profile button */}
           <div className="profile-menu" ref={profileRef}>
             <button
               className="profile-btn"
-              onClick={() => setIsProfileOpen(prev => !prev)}
-              aria-label="Profile settings"
+              onClick={() => setProfileOpen((v) => !v)}
+              aria-label="Account and settings"
               aria-expanded={isProfileOpen}
+              aria-haspopup="menu"
             >
               {user ? (
-                <span style={{ fontFamily: 'var(--font-label)', fontWeight: 700, fontSize: '0.9rem' }}>
-                  {user.username.charAt(0).toUpperCase()}
-                </span>
+                <span className="profile-initial">{user.username.charAt(0).toUpperCase()}</span>
               ) : (
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-                  <circle cx="12" cy="7" r="4"></circle>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                  <circle cx="12" cy="7" r="4" />
                 </svg>
               )}
             </button>
 
-            <div className={`profile-dropdown ${isProfileOpen ? 'open' : ''}`}>
-              <div className="dropdown-header">
-                {user ? `Signed in as @${user.username}` : 'Settings & Account'}
+            {isProfileOpen && (
+              <div className="profile-dropdown open" role="menu">
+                <div className="dropdown-header">
+                  {user ? `Signed in as ${user.username}` : 'Not signed in'}
+                </div>
+
+                <div className="dropdown-item">
+                  <span>Level</span>
+                  <strong>
+                    {level.level} · {level.percent}%
+                  </strong>
+                </div>
+
+                <div className="dropdown-item">
+                  <span>Membership</span>
+                  <strong className={stats.isPremium ? 'is-pro' : ''}>
+                    {stats.isPremium ? 'Pro' : 'Free'}
+                  </strong>
+                </div>
+
+                <div className="dropdown-item">
+                  <span>Server</span>
+                  <strong className={`status-${serverStatus}`}>
+                    {serverStatus === 'online'
+                      ? 'connected'
+                      : serverStatus === 'checking'
+                        ? 'checking…'
+                        : 'offline'}
+                  </strong>
+                </div>
+
+                <div className="dropdown-item">
+                  <span>Dark mode</span>
+                  <label className="switch">
+                    <input
+                      type="checkbox"
+                      checked={theme === 'dark'}
+                      onChange={toggleTheme}
+                      aria-label="Toggle dark mode"
+                    />
+                    <span className="slider" />
+                  </label>
+                </div>
+
+                {user ? (
+                  <button
+                    type="button"
+                    className="btn btn-line dropdown-btn"
+                    onClick={() => {
+                      setProfileOpen(false);
+                      logout();
+                    }}
+                  >
+                    Sign out
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    className="btn btn-solid dropdown-btn"
+                    onClick={() => {
+                      setProfileOpen(false);
+                      openAuthModal();
+                    }}
+                  >
+                    Sign in or register
+                  </button>
+                )}
+
+                {/* Two-step rather than window.confirm, which is blocked in some
+                    browsers and cannot be styled or keyboard-trapped properly. */}
+                {confirmingReset ? (
+                  <div className="dropdown-confirm">
+                    <span>Erase all progress?</span>
+                    <div>
+                      <button type="button" className="btn btn-ghost btn-sm" onClick={() => setConfirmingReset(false)}>
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-danger btn-sm"
+                        onClick={() => {
+                          setConfirmingReset(false);
+                          setProfileOpen(false);
+                          resetProgress();
+                        }}
+                      >
+                        Erase
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    className="btn btn-ghost dropdown-btn dropdown-btn-quiet"
+                    onClick={() => setConfirmingReset(true)}
+                  >
+                    Reset progress
+                  </button>
+                )}
               </div>
-
-              <div className="dropdown-item" style={{ marginBottom: '10px' }}>
-                <span>Developer Lvl</span>
-                <strong>Lv. {stats.level}</strong>
-              </div>
-
-              <div className="dropdown-item" style={{ marginBottom: '10px' }}>
-                <span>Membership</span>
-                <span style={{ color: stats.isPremium ? 'var(--ok)' : 'var(--ink-faint)', fontWeight: 600 }}>
-                  {stats.isPremium ? 'Pro Active' : 'Free Tier'}
-                </span>
-              </div>
-
-              <div className="dropdown-item" style={{ marginBottom: '12px' }}>
-                <span>Dark Mode</span>
-                <label className="switch">
-                  <input
-                    type="checkbox"
-                    id="themeToggle"
-                    checked={theme === 'dark'}
-                    onChange={toggleTheme}
-                  />
-                  <span className="slider"></span>
-                </label>
-              </div>
-
-              {user ? (
-                <button
-                  type="button"
-                  className="btn btn-line"
-                  style={{ width: '100%', justifyContent: 'center', fontSize: '0.82rem', padding: '0.5rem', marginBottom: '8px' }}
-                  onClick={() => {
-                    setIsProfileOpen(false);
-                    logout();
-                  }}
-                >
-                  Sign Out
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  className="btn btn-solid"
-                  style={{ width: '100%', justifyContent: 'center', fontSize: '0.82rem', padding: '0.5rem', marginBottom: '8px' }}
-                  onClick={() => {
-                    setIsProfileOpen(false);
-                    openAuthModal();
-                  }}
-                >
-                  Sign In / Register
-                </button>
-              )}
-
-              <button
-                type="button"
-                className="btn btn-line"
-                style={{ width: '100%', justifyContent: 'center', fontSize: '0.78rem', padding: '0.4rem', color: 'var(--ink-faint)' }}
-                onClick={() => {
-                  if (confirm('Reset your progress and start fresh from Stage 1?')) {
-                    setIsProfileOpen(false);
-                    resetProgress();
-                  }
-                }}
-              >
-                Reset Progress ↺
-              </button>
-            </div>
+            )}
           </div>
 
-          <button
-            type="button"
-            className="btn btn-solid nav-cta"
-            onClick={() => openPractice()}
-          >
-            /start →
+          <button type="button" className="btn btn-solid nav-cta" onClick={() => openPractice()}>
+            Practise →
           </button>
         </nav>
 
         <button
-          className={`nav-toggle ${isMobileOpen ? 'open' : ''}`}
-          onClick={() => setIsMobileOpen(prev => !prev)}
+          className={`nav-toggle ${isMobileOpen ? 'open' : ''}`.trim()}
+          onClick={() => setMobileOpen((v) => !v)}
           aria-label="Toggle navigation menu"
           aria-expanded={isMobileOpen}
         >
-          <span></span>
-          <span></span>
+          <span />
+          <span />
         </button>
       </header>
 
-      <div className={`nav-mobile ${isMobileOpen ? 'open' : ''}`}>
-        <a href="#journey" onClick={() => setIsMobileOpen(false)}>/paths</a>
-        <button
-          type="button"
-          onClick={() => {
-            setIsMobileOpen(false);
-            openPractice();
-          }}
-        >
-          /practice
-        </button>
-        <a href="#compiler" onClick={() => setIsMobileOpen(false)}>/compiler</a>
+      <div className={`nav-mobile ${isMobileOpen ? 'open' : ''}`.trim()}>
+        <a href="#journey" onClick={closeMobile}>
+          /path
+        </a>
+        <a href="#library" onClick={closeMobile}>
+          /challenges
+        </a>
+        <a href="#compiler" onClick={closeMobile}>
+          /playground
+        </a>
         {!stats.isPremium && (
           <button
             type="button"
-            style={{ color: 'var(--accent-2)' }}
+            className="nav-link-pro"
             onClick={() => {
-              setIsMobileOpen(false);
+              closeMobile();
               openSubModal();
             }}
           >
-            /pro (Upgrade)
+            /pro
           </button>
         )}
-        <div style={{ padding: '0.8rem 0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span>Dark Mode</span>
+
+        <div className="nav-mobile-row">
+          <span>Dark mode</span>
           <label className="switch">
-            <input
-              type="checkbox"
-              checked={theme === 'dark'}
-              onChange={toggleTheme}
-            />
-            <span className="slider"></span>
+            <input type="checkbox" checked={theme === 'dark'} onChange={toggleTheme} aria-label="Toggle dark mode" />
+            <span className="slider" />
           </label>
         </div>
+
+        <button
+          type="button"
+          className="btn btn-solid nav-mobile-cta"
+          onClick={() => {
+            closeMobile();
+            openPractice();
+          }}
+        >
+          Start practising
+        </button>
 
         {user ? (
           <button
             type="button"
-            className="btn btn-line"
-            style={{ width: '100%', justifyContent: 'center', marginTop: '0.4rem' }}
+            className="btn btn-line nav-mobile-cta"
             onClick={() => {
-              setIsMobileOpen(false);
+              closeMobile();
               logout();
             }}
           >
-            Sign Out (@{user.username})
+            Sign out ({user.username})
           </button>
         ) : (
           <button
             type="button"
-            className="btn btn-solid"
-            style={{ width: '100%', justifyContent: 'center', marginTop: '0.4rem' }}
+            className="btn btn-line nav-mobile-cta"
             onClick={() => {
-              setIsMobileOpen(false);
+              closeMobile();
               openAuthModal();
             }}
           >
-            Sign In / Register
+            Sign in or register
           </button>
         )}
       </div>

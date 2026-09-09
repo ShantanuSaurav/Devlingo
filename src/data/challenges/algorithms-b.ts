@@ -3,7 +3,8 @@ import { Challenge } from '../../types';
 /**
  * Stage 04 - Algorithms & Problem Solving, batch B.
  * Recursion, memoisation and DP, greedy choices, binary search,
- * BFS vs DFS, backtracking, and Big-O of nested loops.
+ * merging sorted runs, BFS vs DFS, backtracking, and Big-O of
+ * nested loops.
  */
 export const challenges: Challenge[] = [
   {
@@ -81,7 +82,7 @@ export const challenges: Challenge[] = [
     difficulty: 'medium',
     language: 'javascript',
     prompt:
-      'This greedy routine always takes the largest coin that still fits. What does it print for a target of 6 with coins 4, 3 and 1?',
+      'This greedy routine walks the coin list from largest to smallest, taking as many of each coin as still fit. What does it print for a target of 6 with coins 4, 3 and 1?',
     codeSnippet:
       'function greedyCoins(target, coins) {\n' +
       '  let left = target;\n' +
@@ -133,7 +134,7 @@ export const challenges: Challenge[] = [
     ],
     hints: [
       'A Map answers "do I already know this key?" with one method and records a new entry with another.',
-      'Several of the choices are borrowed from Array, Set or maps in other languages.'
+      'Map keeps to its own small vocabulary and borrows no method names from Array.'
     ],
     explanation:
       'A Map tests membership with has(key) and stores with set(key, value); includes belongs to Array, add to Set, and contains, hasKey and put come from other languages. The two coordinates are folded into one string key because a Map compares keys by identity, so a fresh [row, col] array would never match a stored one. With the cache in place each cell is expanded once instead of once per path that reaches it.',
@@ -198,7 +199,7 @@ export const challenges: Challenge[] = [
       'Breadth-first means the oldest node in the queue is processed next.'
     ],
     explanation:
-      'BFS removes from the front and appends to the back, so nodes come out in order of distance from start. Marking a neighbour visited as it is enqueued stops the same node being queued twice; swapping the queue for a stack turns the exact same skeleton into DFS.',
+      'BFS removes from the front and appends to the back, so nodes come out in order of distance from start. Marking a neighbour visited as it is enqueued stops the same node being queued twice; swapping the queue for a stack makes the same skeleton explore depth-first instead.',
     xpReward: 70,
     tags: ['bfs', 'graphs', 'queue']
   },
@@ -212,7 +213,7 @@ export const challenges: Challenge[] = [
     prompt:
       'Which statements about BFS and DFS on an unweighted graph are true? Select every one that applies.',
     options: [
-      'BFS reaches every node by a path with the fewest possible edges.',
+      'BFS first reaches each node it visits by a path with the fewest edges.',
       'DFS is normally written with an explicit stack, or with the call stack via recursion.',
       'DFS finds the shortest path first because it reaches deep nodes quickly.',
       'On a very wide graph BFS can hold far more nodes in memory at once than DFS.',
@@ -232,41 +233,46 @@ export const challenges: Challenge[] = [
   {
     id: 'stage-4-b08',
     stageId: 'stage-4',
-    title: 'Climbing stairs with a cache',
+    title: 'Merge two sorted runs',
     type: 'code_runner',
     difficulty: 'medium',
     language: 'javascript',
     prompt:
-      'You can climb 1 or 2 steps at a time. Return how many distinct ways there are to reach step n. The tests include n = 40, so plain recursion without a cache will be far too slow.',
+      'Both inputs are already sorted ascending. Return one ascending array holding every element of both, keeping duplicates. Do it in a single pass: do not concatenate and re-sort.',
     starterCode:
-      'function climbStairs(n, memo = new Map()) {\n' +
+      'function mergeSorted(a, b) {\n' +
       '  // your code here\n' +
-      '  return 0;\n' +
+      '  return [];\n' +
       '}',
-    entryFunction: 'climbStairs',
+    entryFunction: 'mergeSorted',
     testCases: [
-      { input: '1', expected: '1' },
-      { input: '2', expected: '2' },
-      { input: '5', expected: '8' },
-      { input: '10', expected: '89' },
-      { input: '40', expected: '165580141' }
+      { input: '[1, 3, 5], [2, 4, 6]', expected: '[1, 2, 3, 4, 5, 6]' },
+      { input: '[], [1, 2]', expected: '[1, 2]' },
+      { input: '[1, 2], []', expected: '[1, 2]' },
+      { input: '[1, 1, 4], [1, 3]', expected: '[1, 1, 1, 3, 4]' },
+      { input: '[9], [2, 8]', expected: '[2, 8, 9]' }
     ],
     solutionCode:
-      'function climbStairs(n, memo = new Map()) {\n' +
-      '  if (n <= 2) return n;\n' +
-      '  if (memo.has(n)) return memo.get(n);\n' +
-      '  const ways = climbStairs(n - 1, memo) + climbStairs(n - 2, memo);\n' +
-      '  memo.set(n, ways);\n' +
-      '  return ways;\n' +
+      'function mergeSorted(a, b) {\n' +
+      '  const out = [];\n' +
+      '  let i = 0;\n' +
+      '  let j = 0;\n' +
+      '  while (i < a.length && j < b.length) {\n' +
+      '    if (a[i] <= b[j]) out.push(a[i++]);\n' +
+      '    else out.push(b[j++]);\n' +
+      '  }\n' +
+      '  while (i < a.length) out.push(a[i++]);\n' +
+      '  while (j < b.length) out.push(b[j++]);\n' +
+      '  return out;\n' +
       '}',
     hints: [
-      'The last move onto step n came either from step n - 1 or from step n - 2.',
-      'Pass the same memo down into both recursive calls so the cache is shared.'
+      'Keep one index into each array and advance only the one you just took from.',
+      'The main loop stops as soon as either index runs off the end. What is still sitting in the other array at that moment?'
     ],
     explanation:
-      'Every way to reach step n ends with a 1-step or a 2-step move, so ways(n) = ways(n - 1) + ways(n - 2) with ways(1) = 1 and ways(2) = 2. Without a cache the call tree doubles at every level, roughly O(2^n); memoising each n makes it O(n).',
+      'Because both inputs are sorted, the smallest element not yet taken is always at the front of one list or the other, so comparing just those two heads is enough to choose the next output. That makes the merge O(a + b) in one pass, while concatenating and re-sorting throws away the ordering you were handed and costs O(n log n). The tail loops are not optional: the main loop exits the moment one side empties, leaving the rest of the other side unwritten.',
     xpReward: 70,
-    tags: ['dynamic-programming', 'memoisation', 'recursion']
+    tags: ['merge', 'two-pointers', 'sorting']
   },
   {
     id: 'stage-4-b09',
@@ -366,8 +372,8 @@ export const challenges: Challenge[] = [
       '  return best[amount] === Infinity ? -1 : best[amount];\n' +
       '}',
     hints: [
-      'Build an array best[v] = fewest coins for value v, filling it from 0 upwards.',
-      'best[0] is 0, and any value you never manage to reach should stay at Infinity.'
+      'If you already knew the fewest coins for every amount below v, how would you work out v itself?',
+      'You need a starting value that means "no way to make this yet" and that can never win a minimum comparison.'
     ],
     explanation:
       'Solving every smaller amount first turns the problem into best[v] = 1 + min(best[v - coin]) over the coins that fit. Amounts that stay at Infinity are unreachable and map to -1, and the loop is O(amount * coins.length) rather than the exponential search recursion alone would do.',

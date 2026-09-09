@@ -3,8 +3,8 @@ import { Challenge } from '../../types';
 /**
  * Stage 07 - Databases & SQL, batch B.
  * Covers primary vs unique keys, when a b-tree index is skipped, normal forms,
- * foreign keys and constraints, transactions and savepoints, isolation levels
- * and the N+1 query problem.
+ * foreign keys and constraints, transactions and savepoints, isolation levels,
+ * online schema migrations and the N+1 query problem.
  */
 export const challenges: Challenge[] = [
   {
@@ -54,7 +54,7 @@ export const challenges: Challenge[] = [
       "WHERE date(created_at) = '2024-05-01';",
     options: [
       "WHERE created_at >= '2024-05-01' AND created_at < '2024-05-02'",
-      'Add ORDER BY created_at so the planner notices the column is indexed',
+      "Cast the constant too: WHERE date(created_at) = date('2024-05-01')",
       'Recreate it as a UNIQUE index so the planner trusts it more',
       'Add LIMIT 100 so the planner can stop early instead of scanning'
     ],
@@ -76,7 +76,7 @@ export const challenges: Challenge[] = [
     difficulty: 'medium',
     language: 'sql',
     prompt:
-      'product_name is always the same for a given product_id. Which normal form does this table break?',
+      'product_name is always the same for a given product_id. Which is the lowest normal form this table violates, and for what reason?',
     codeSnippet:
       'CREATE TABLE order_lines (\n' +
       '  order_id     INTEGER,\n' +
@@ -97,7 +97,7 @@ export const challenges: Challenge[] = [
       'First normal form is about the shape of a single value, not repeated rows.'
     ],
     explanation:
-      'Second normal form forbids a non-key column that depends on only part of a composite key. product_name is determined by product_id alone, half of (order_id, product_id), so it belongs in a products table that order_lines references. Third normal form would be about a dependency on a non-key column, and first normal form is about atomic values, not repetition across rows.',
+      'Second normal form forbids a non-key column that depends on only part of a composite key. product_name is determined by product_id alone, half of (order_id, product_id), so it belongs in a products table that order_lines references. Failing 2NF means the table is not in 3NF either, but 3NF is specifically about depending on a non-key column, and 1NF is about atomic values rather than repetition across rows.',
     xpReward: 70,
     tags: ['normalisation', '2nf', 'schema-design']
   },
@@ -109,7 +109,7 @@ export const challenges: Challenge[] = [
     difficulty: 'easy',
     language: 'sql',
     prompt:
-      'Fill the blanks so a total can never be negative, every order points at a real customer, and deleting a customer removes that customer orders as well.',
+      'Fill the blanks so a total can never be negative, every order points at a real customer, and deleting a customer removes the orders belonging to that customer.',
     codeSnippet:
       'CREATE TABLE orders (\n' +
       '  id          INTEGER PRIMARY KEY,\n' +
@@ -193,7 +193,7 @@ export const challenges: Challenge[] = [
     correctIndices: [0, 2],
     hints: [
       'READ COMMITTED takes a fresh snapshot for every statement, not for the transaction.',
-      'Two of these are not anomalies at any isolation level - the engine never allows them.'
+      'Ask of each option whether any isolation level permits it at all, or whether locking rules it out everywhere.'
     ],
     explanation:
       'READ COMMITTED reads a fresh snapshot of committed data per statement, so it never sees uncommitted rows but a repeated read can pick up anything committed in between: that is a non-repeatable read, and its range form is a phantom. A transaction always sees its own writes, and a row-level write lock blocks the second writer until the first commits or rolls back, so the last two can never happen.',
@@ -237,30 +237,27 @@ export const challenges: Challenge[] = [
   {
     id: 'stage-7-b08',
     stageId: 'stage-7',
-    title: 'Order the fix for an N+1',
+    title: 'Add a NOT NULL column to a live table',
     type: 'pseudocode_order',
     difficulty: 'medium',
     language: 'pseudocode',
     prompt:
-      'A page loads 50 posts and then one author per post: 51 queries. Order these lines so the same page costs two queries.',
+      'A busy table needs a new NOT NULL column while inserts keep arriving. Order these steps so no live insert is rejected and the final step cannot fail.',
     pseudocodeLines: [
-      'RUN one query that loads every post on the page',
-      'COLLECT the author_id of each loaded post INTO a list',
-      'REMOVE the duplicate ids FROM that list',
-      'RUN one query that loads every author WHERE id IS IN that list',
-      'BUILD a lookup map FROM author id TO author record',
-      'FOR EACH post',
-      '    SET post.author TO the map entry for post.author_id',
-      'END FOR'
+      'ADD the column TO the live table AS nullable',
+      'DEPLOY the application code that fills the column on every write',
+      'BACKFILL the rows that already existed, IN small batches',
+      'VERIFY that no row is left holding NULL in the column',
+      'ADD the NOT NULL constraint TO the column'
     ],
     hints: [
-      'You cannot ask for the authors until you know which ids the posts referenced.',
-      'Every database round trip should happen before the loop, never inside it.'
+      'Adding the constraint fails while even one row still holds NULL.',
+      'If new rows can still arrive with the column empty, a finished backfill does not stay finished.'
     ],
     explanation:
-      'The N+1 problem is one extra query per parent row. Loading the parents first, gathering their foreign keys, fetching all the children in a single IN query and then stitching them together through an in-memory map turns 1 + N round trips into exactly two, which is what an ORM does when you eager-load a relation.',
+      'Every step is the precondition of the next one: the column has to exist before any code can write it, the new writes have to be live before the backfill starts or rows inserted during the backfill would be left NULL, and the constraint can only be added once a check confirms that zero NULLs remain. Doing it in one shot instead makes the database validate every existing row while the table is locked against writes.',
     xpReward: 70,
-    tags: ['n-plus-one', 'query-performance', 'orm']
+    tags: ['migrations', 'schema-design', 'not-null']
   },
   {
     id: 'stage-7-b09',

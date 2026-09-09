@@ -69,7 +69,8 @@ export const challenges: Challenge[] = [
       { answer: 'Assert', choices: ['Arrange', 'Act', 'Assert'] }
     ],
     hints: [
-      'Each comment labels the single line under it, so ask what that one line does: build data, run the operation under test, or inspect the outcome.'
+      'Each comment labels only the single line directly under it.',
+      'Exactly one of the three lines calls the method the test is named after.'
     ],
     explanation:
       'Arrange builds the world the test needs, act performs exactly one operation on it, and assert checks the result of that operation. Keeping the three separate makes it obvious what the test drives and what it verifies, and a test with two act phases is usually two tests.',
@@ -167,28 +168,33 @@ export const challenges: Challenge[] = [
   {
     id: 'stage-8-b06',
     stageId: 'stage-8',
-    title: 'What the caret range installs',
+    title: 'Why CI runs npm ci',
     type: 'quiz',
     difficulty: 'medium',
     language: 'bash',
     prompt:
-      'The lockfile has been deleted. Which version of parser ends up in node_modules after this install?',
+      'This pipeline runs npm ci rather than npm install. What does npm ci do?',
     codeSnippet:
-      '$ npm view parser versions\n' +
-      "[ '1.4.2', '1.5.0', '1.9.3', '2.0.0', '2.1.0' ]\n" +
-      '$ grep parser package.json\n' +
-      '  "parser": "^1.4.2"\n' +
-      '$ rm package-lock.json && npm install',
-    options: ['1.9.3', '1.4.2', '2.1.0', '1.5.0'],
+      '# .github/workflows/ci.yml\n' +
+      'steps:\n' +
+      '  - uses: actions/checkout@v4\n' +
+      '  - run: npm ci\n' +
+      '  - run: npm test',
+    options: [
+      'Installs the exact versions the lockfile pins, and fails if the lockfile and package.json disagree',
+      'Rewrites the lockfile to the newest version that each range in package.json currently allows',
+      'Ignores the lockfile completely and resolves every range in package.json from scratch again',
+      'Installs the production dependencies only, and always skips every entry under devDependencies'
+    ],
     correctIndex: 0,
     hints: [
-      'A caret range allows anything up to, but not including, the next major version.',
-      'Without a lockfile npm is free to pick the newest version the range allows.'
+      'The two letters stand for continuous integration, so ask what a build machine needs that a laptop does not.',
+      'One of these commands is allowed to change package-lock.json and the other is not.'
     ],
     explanation:
-      'The caret in ^1.4.2 means at least 1.4.2 but below 2.0.0, and npm resolves a range to the highest published version that satisfies it, which is 1.9.3. The lockfile is what normally pins the exact resolved version, so deleting it is what let the answer drift away from 1.4.2.',
+      'npm ci treats the lockfile as the source of truth: it installs the pinned tree verbatim and aborts if package.json asks for something the lockfile does not satisfy, so two runs a month apart install byte-identical dependencies. npm install is the opposite tool - it is allowed to resolve ranges and rewrite the lockfile, which is exactly the non-determinism a build machine must not have.',
     xpReward: 70,
-    tags: ['semver', 'npm', 'lockfiles']
+    tags: ['npm', 'lockfiles', 'ci', 'reproducibility']
   },
   {
     id: 'stage-8-b07',
@@ -225,7 +231,7 @@ export const challenges: Challenge[] = [
     difficulty: 'hard',
     language: 'javascript',
     prompt:
-      'Given published version strings like "1.9.3" and a currently pinned version, return the highest version a caret range on the pinned version allows: same major, and not lower than the pinned version. Return null if none qualifies. Assume every major version is at least 1.',
+      'Given published version strings like "1.9.3" and a currently pinned version, return the highest version a caret range on the pinned version allows: same major, and not lower than the pinned version. Return null if none qualifies. The pinned version always has a major of 1 or higher, and every version string has exactly three numeric parts.',
     starterCode:
       'function highestCompatible(versions, current) {\n' +
       '  // your code here\n' +
@@ -322,16 +328,17 @@ export const challenges: Challenge[] = [
       'CHECK OUT the commit that triggered the pipeline',
       'RESTORE the cache keyed by the hash of package-lock.json',
       'INSTALL the exact versions the lockfile pins',
-      'RUN the linter, the cheapest check, so failures surface fastest',
-      'RUN the test suite',
-      'BUILD the production bundle',
+      'RUN the linter the install just provided, the cheapest check',
+      'RUN the test suite, which takes minutes rather than seconds',
+      'BUILD the production bundle, but only once the suite is green',
       'UPLOAD the bundle as a downloadable artifact'
     ],
     hints: [
-      'The cache key is computed from a file in the repository, so something must happen before the cache can be looked up.'
+      'The cache key is computed from a file in the repository, so something must happen before the cache can be looked up.',
+      'Every later step needs something an earlier step put on the machine.'
     ],
     explanation:
-      'The job starts from a clean machine, so it checks out the code before anything can read the lockfile that keys the dependency cache. Fail-fast ordering puts the seconds-long linter ahead of the minutes-long test suite, and the artifact upload can only run after the build that produces it.',
+      'Each step consumes what the step before it produced: the checkout supplies the lockfile that keys the cache, the install supplies the linter and test runner, and the build supplies the file the upload sends. Fail-fast ordering then puts the seconds-long linter ahead of the minutes-long suite, and this job only spends time bundling once the tests have gone green.',
     xpReward: 70,
     tags: ['ci', 'pipelines', 'automation', 'lockfiles']
   }

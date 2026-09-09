@@ -105,8 +105,8 @@ export const challenges: Challenge[] = [
       'Which statements about event bubbling and event delegation are true? Select every one that applies.',
     options: [
       'A click on a child element also triggers a click listener attached to an ancestor.',
-      'event.target is where the event started, event.currentTarget is the element whose listener is running.',
-      'Calling event.stopPropagation() in a child listener stops ancestor listeners from running.',
+      'A delegated listener also handles rows that were inserted after it was attached.',
+      'A capturing listener on an ancestor runs before any listener on the target itself.',
       'The focus event bubbles, so it can be delegated from a listener on document.',
       'Delegation works by attaching one listener to every child element.',
       'event.preventDefault() stops the event from reaching ancestor listeners.'
@@ -114,10 +114,10 @@ export const challenges: Challenge[] = [
     correctIndices: [0, 1, 2],
     hints: [
       'Delegation exists precisely so you do not need one listener per row.',
-      'One of these two methods cancels the default browser action, the other cancels travel up the tree.'
+      'An event makes two passes over the ancestor chain, and not every event type travels both of them.'
     ],
     explanation:
-      'Most events travel back up the ancestor chain, which is why a single listener on a container can serve every row, and why target and currentTarget differ inside it. focus does not bubble (focusin does), delegation deliberately uses one listener instead of many, and preventDefault only cancels the browser default action, never propagation.',
+      'An event runs down the ancestor chain in the capture phase and back up in the bubble phase, so a capturing ancestor listener fires before any listener on the target, and a single bubble-phase listener on a container can serve every row - including rows added later, since that listener never has to know they exist. focus does not bubble (focusin does), delegation deliberately uses one listener instead of many, and preventDefault only cancels the browser default action, never propagation.',
     xpReward: 70,
     tags: ['events', 'bubbling', 'delegation']
   },
@@ -143,11 +143,11 @@ export const challenges: Challenge[] = [
       { answer: 'toggle', choices: ['toggle', 'add', 'replace'] }
     ],
     hints: [
-      'currentTarget is always the list itself, so closest() on it would be useless.',
-      'The middle blank has to reject a row that came from some other list on the page.'
+      'Think about which property differs when the click lands on a nested <span> rather than on the row itself.',
+      'The walk that closest() performs does not stop at the list, so the middle blank has to check where it ended up.'
     ],
     explanation:
-      'event.target is the deepest element that was clicked, so closest("li") walks up from there to the row. list.contains(item) rejects rows that came from some other list, and classList.toggle flips the class on or off with one call.',
+      'event.target is the deepest element that was clicked, so closest("li") walks up from there to the row. That walk keeps climbing past the list, so when one list sits inside another list row it can return an <li> outside this list; list.contains(item) rejects exactly that case. classList.toggle then flips the class on or off with a single call.',
     xpReward: 40,
     tags: ['delegation', 'dom', 'closest']
   },
@@ -237,7 +237,8 @@ export const challenges: Challenge[] = [
       { input: '""', expected: '{}' },
       { input: '"?flag&x=1"', expected: '{ "flag": "", "x": "1" }' },
       { input: '"?a=1&a=2"', expected: '{ "a": "2" }' },
-      { input: '"?next=/a=b"', expected: '{ "next": "/a=b" }' }
+      { input: '"?next=/a=b"', expected: '{ "next": "/a=b" }' },
+      { input: '"?&a=1&"', expected: '{ "a": "1" }' }
     ],
     solutionCode:
       'function parseQuery(qs) {\n' +
@@ -268,7 +269,7 @@ export const challenges: Challenge[] = [
     difficulty: 'hard',
     language: 'javascript',
     prompt:
-      'chain lists the event target and then each of its ancestors, target first and root last. Each entry has an id, a handler flag saying whether a listener is attached, and a stops flag saying whether that listener calls stopPropagation(). Return the ids of the listeners that actually run, in bubbling order.',
+      'chain lists the event target and then each of its ancestors, target first and root last. Each entry has an id, a handler flag saying whether a listener is attached, and a stops flag saying whether that listener calls stopPropagation(); a node carrying no listener stops nothing. Return the ids of the listeners that actually run, in bubbling order.',
     starterCode:
       'function bubbleOrder(chain) {\n' +
       '  // your code here\n' +
@@ -308,6 +309,12 @@ export const challenges: Challenge[] = [
           '[{ id: "a", handler: false, stops: false }, ' +
           '{ id: "b", handler: false, stops: false }]',
         expected: '[]'
+      },
+      {
+        input:
+          '[{ id: "menu", handler: false, stops: true }, ' +
+          '{ id: "nav", handler: true, stops: false }]',
+        expected: '["nav"]'
       }
     ],
     solutionCode:
@@ -322,7 +329,7 @@ export const challenges: Challenge[] = [
       '}',
     hints: [
       'A node with no listener is simply skipped - the event still passes through it.',
-      'stopPropagation runs the current listener first and only then halts the walk upwards.'
+      'For a node that stops propagation, which comes first: its own listener running, or the walk upwards halting?'
     ],
     explanation:
       'Bubbling visits every ancestor in turn but only fires the ones with a listener attached. stopPropagation does not cancel the listener that calls it, it prevents the event from reaching anything further up, which is why the id is recorded before the loop breaks.',

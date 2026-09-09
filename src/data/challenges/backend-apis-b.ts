@@ -29,10 +29,10 @@ export const challenges: Challenge[] = [
       '// Every request is checked with only this:\n' +
       'jwt.verify(token, SECRET);',
     options: [
-      'It stops working at once, because verify re-reads the user record.',
-      'It keeps working until 10:55 unless the server also checks a revocation list.',
-      'It stops working at once, because banning rotates the signing secret.',
-      'It keeps working until the client next reloads and drops the token.'
+      'It stops working at once, because verify re-reads the banned user record.',
+      'It keeps working until 10:55 unless the server checks a revocation list.',
+      'It stops working at once, because a ban rotates the JWT signing secret.',
+      'It keeps working until the client reloads the page and drops the token.'
     ],
     correctIndex: 1,
     hints: [
@@ -55,12 +55,16 @@ export const challenges: Challenge[] = [
     codeSnippet:
       'const bcrypt = require("bcrypt");\n' +
       '\n' +
-      'const a = await bcrypt.hash("hunter2", 12);\n' +
-      'const b = await bcrypt.hash("hunter2", 12);\n' +
+      'async function main() {\n' +
+      '  const a = await bcrypt.hash("hunter2", 12);\n' +
+      '  const b = await bcrypt.hash("hunter2", 12);\n' +
       '\n' +
-      'console.log(a === b);\n' +
-      'console.log(a.length === b.length);\n' +
-      'console.log(await bcrypt.compare("hunter2", b));',
+      '  console.log(a === b);\n' +
+      '  console.log(a.length === b.length);\n' +
+      '  console.log(await bcrypt.compare("hunter2", b));\n' +
+      '}\n' +
+      '\n' +
+      'main();',
     options: [
       'false, true, true',
       'true, true, true',
@@ -70,7 +74,7 @@ export const challenges: Challenge[] = [
     correctIndex: 0,
     hints: [
       'Ask what bcrypt mixes into the input before it starts the work factor rounds.',
-      'A bcrypt digest is always the same 60-character shape, whatever the password was.'
+      'Verification cannot redo the hash without that extra ingredient, so work out where it had to be kept.'
     ],
     explanation:
       'bcrypt draws a fresh random salt on every hash call and stores that salt inside its 60-character output, so two hashes of the same password never match as strings but always have the same length. compare reads the salt and cost back out of the stored digest and re-derives the hash, which is why you must call compare instead of hashing the input and testing for equality.',
@@ -98,7 +102,7 @@ export const challenges: Challenge[] = [
       'app.use((req, res, next) => { console.log("C"); next(); });\n' +
       '\n' +
       '// The client sends: GET /ping',
-    options: ['A then B', 'A then B then C', 'A then C then B', 'B then A then C'],
+    options: ['A then B', 'A then B then C', 'A then C then B', 'B only'],
     correctIndex: 0,
     hints: [
       'Express walks its stack in registration order, one entry at a time.',
@@ -157,7 +161,7 @@ export const challenges: Challenge[] = [
     difficulty: 'easy',
     language: 'javascript',
     prompt:
-      'Fill in the blanks so the handler checks the type of each field before it checks the shape or the range.',
+      'Fill in the blanks so validateSignup rejects an email that is not a string before it looks at the address shape, and rejects an age that is not a whole number of 13 or more.',
     codeSnippet:
       'function validateSignup(body) {\n' +
       '  const errors = [];\n' +
@@ -178,8 +182,8 @@ export const challenges: Challenge[] = [
       { answer: 'isInteger', choices: ['isInteger', 'isNaN', 'isFinite', 'parseInt'] }
     ],
     hints: [
-      'typeof answers with a lowercase string, and a RegExp has a method that answers with a boolean.',
-      'Number("12.5") and Number("abc") both survive Number(); only one of the Number.* predicates rejects both.'
+      'One blank wants the exact spelling typeof produces; another wants the method that belongs to the RegExp rather than to the string.',
+      'body.age arrives as text, so after Number() it may still be NaN, 12.5 or Infinity - and all three have to fail.'
     ],
     explanation:
       'JSON bodies are attacker-controlled, so every field needs a type check before anything is done with it: RegExp.test does not throw on a non-string, it coerces first, so the array ["a@b.dev"] would sail through an email check that looks strict. test returns a plain boolean, and Number.isInteger rejects NaN, 12.5 and Infinity in a single call, where Number.isFinite would accept 12.5.',
@@ -310,7 +314,7 @@ export const challenges: Challenge[] = [
     difficulty: 'easy',
     language: 'javascript',
     prompt:
-      'GET /api/orders?page=1&perPage=2 must return the first two orders, because page numbers in this API start at 1. Testers report that page 1 shows the same rows as page 2 used to. Fix pageOf so every page number maps to the right slice.',
+      'GET /api/orders?page=1&perPage=2 must return the first two orders, because page numbers in this API start at 1. Testers report that page 1 comes back holding the rows that belong on page 2, and the first two orders cannot be reached at all. Fix pageOf so every page number maps to the right slice.',
     starterCode:
       'function pageOf(items, page, perPage) {\n' +
       '  const start = page * perPage;\n' +
@@ -331,7 +335,7 @@ export const challenges: Challenge[] = [
       '}',
     hints: [
       'Work out by hand what start has to be when the client asks for the very first page.',
-      'The window width is right; it is the offset the page number turns into that is wrong.'
+      'slice already clamps a start past the end and a short final page, so the repair needs no extra length checks.'
     ],
     explanation:
       'A 1-based page number has to be shifted before it becomes a 0-based offset, so the first page starts at index 0, not at perPage - as written, page 1 silently returns page 2 and the first rows are unreachable. slice already clamps a past-the-end range to an empty array and a short final page to whatever is left, so no extra bounds checks are needed.',
@@ -346,7 +350,7 @@ export const challenges: Challenge[] = [
     difficulty: 'medium',
     language: 'javascript',
     prompt:
-      'Map an internal error onto the response a client should see. Return {status, code, message}. kind "validation" gives 400 and code "validation_error", "unauthenticated" gives 401, "forbidden" gives 403, "not_found" gives 404, and each of those passes err.message through. Any other kind is a server fault: return status 500, code "internal_error" and the fixed message "Internal server error".',
+      'Map an internal error onto the response a client should see. Return {status, code, message}. kind "validation" gives status 400 with code "validation_error"; "unauthenticated" gives 401, "forbidden" gives 403 and "not_found" gives 404, each using the kind itself as the code. All four pass err.message through unchanged. Any other kind is a server fault: return status 500, code "internal_error" and the fixed message "Internal server error".',
     starterCode:
       'function toErrorResponse(err) {\n' +
       '  // your code here\n' +

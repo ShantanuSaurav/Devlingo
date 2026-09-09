@@ -24,9 +24,9 @@ export const challenges: Challenge[] = [
       '  return user;\n' +
       '}',
     options: [
-      'Cache-aside: the application checks the cache, then loads from the database and populates the cache on a miss',
+      'Cache-aside: the application checks the cache and loads from the database on a miss',
       'Read-through: the cache client owns the miss path and loads from the database itself',
-      'Write-through: every write updates the cache and the database in the same operation',
+      'Write-through: every write updates the cache and the database in one operation',
       'Write-behind: writes land in the cache first and are flushed to the database later'
     ],
     correctIndex: 0,
@@ -75,7 +75,7 @@ export const challenges: Challenge[] = [
     ],
     correctIndex: 0,
     hints: [
-      'The entry stores an absolute expiry time; reading it does not move that time.',
+      'Check whether a cache hit ever rewrites the stored expires value.',
       'Work out expires for each write, then compare it with clock at each read.'
     ],
     explanation:
@@ -102,21 +102,22 @@ export const challenges: Challenge[] = [
       '});\n' +
       '\n' +
       'app.get("/me", (req, res) => {\n' +
-      '  res.json({ userId: sessions.get(req.header("token")) });\n' +
+      '  const token = req.header("token");\n' +
+      '  res.json({ userId: sessions.get(token) || null });\n' +
       '});',
     options: [
-      'Each replica has its own sessions Map, so a request routed elsewhere finds nothing; move sessions into a shared store such as Redis',
-      'The load balancer drops custom headers, so the token never arrives; configure it to forward the token header',
+      'Each replica has its own sessions Map; move session state into a shared store such as Redis',
+      'The load balancer strips custom headers, so the token never arrives; forward the token header',
       'Four replicas quadruple memory use and the Map gets evicted; give each replica a larger heap',
-      'Round-robin spreads load unevenly; switch to least-connections so every request reaches the same replica'
+      'Round-robin spreads load unevenly; least-connections would pin each user to one replica'
     ],
     correctIndex: 0,
     hints: [
-      'Ask what the login request wrote, and where that data lives.',
-      'No load balancing algorithm sends a user back to the replica that served them last.'
+      'Ask what the login request wrote, and where exactly that data lives.',
+      'A plain round-robin balancer has no idea which replica served a user last.'
     ],
     explanation:
-      'Vertical scaling keeps one process, so in-process state keeps working; horizontal scaling gives every replica its own memory. The login token is written into one replica and the next request lands on another, so the lookup fails. Moving session state to a shared store makes the replicas stateless and interchangeable.',
+      'Each replica is a separate process with its own heap, so the Map written during login exists only on the replica that handled it. Round-robin sends the follow-up request to a different replica, whose Map has never seen that token, so the lookup misses. Moving session state to a store every replica can reach makes the replicas stateless and interchangeable.',
     xpReward: 40,
     tags: ['scaling', 'horizontal-scaling', 'statelessness']
   },
@@ -169,11 +170,11 @@ export const challenges: Challenge[] = [
       { answer: 'del', choices: ['set', 'del', 'get', 'expire'] }
     ],
     hints: [
-      'Write the durable copy before you touch the cached copy.',
-      'You do not have to put the new value in the cache; you only have to stop the old one being served.'
+      'Only one of the two writes is durable; decide which one has to happen first.',
+      'Ask what two overlapping setPrice calls for the same sku could leave behind in the cache.'
     ],
     explanation:
-      'Update the database first so a crash between the two steps loses the cache entry rather than the write. Then delete the key instead of overwriting it: two concurrent writers that each set their own value can interleave and leave the loser stored forever, while a delete simply forces the next read to repopulate from the database.',
+      'Doing the durable write first means a crash between the steps only leaves a stale cache entry, which its TTL will clear; the other order can lose the price update entirely. The second step removes the key rather than overwriting it because two concurrent writers that each store their own value can interleave and leave the loser cached indefinitely, whereas a delete just forces the next read to repopulate from the database.',
     xpReward: 40,
     tags: ['caching', 'invalidation', 'cache-aside']
   },
@@ -375,7 +376,7 @@ export const challenges: Challenge[] = [
       '  return Array.from(cache.keys());\n' +
       '}',
     hints: [
-      'A Map keeps keys in insertion order, and set on an existing key does not move it.',
+      'A Map iterates its keys in insertion order. What does set do to a key that is already there?',
       'Trace capacity 2 with a, b, a, c and note which key gets thrown away.'
     ],
     explanation:

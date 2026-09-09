@@ -19,20 +19,20 @@ export const challenges: Challenge[] = [
       'GET    /api/carts/17/items?inStock=true\n' +
       'POST   /api/carts/17/items\n' +
       'DELETE /api/carts/17/items/9\n' +
-      'GET    /api/carts/17/checkout',
+      'GET    /api/carts/17/items/9/delete',
     options: [
+      'GET /api/carts/17/items/9/delete',
       'GET /api/carts/17/items?inStock=true',
       'POST /api/carts/17/items',
-      'DELETE /api/carts/17/items/9',
-      'GET /api/carts/17/checkout'
+      'DELETE /api/carts/17/items/9'
     ],
-    correctIndex: 3,
+    correctIndex: 0,
     hints: [
       'Read what each path would actually make the server do, then check whether that method is allowed to do it.',
       'Ask which methods a browser, a crawler or a link prefetcher may fire on its own.'
     ],
     explanation:
-      'GET is a safe method: it must only read, never change stored state. Checking out charges a card and empties the cart, so any prefetcher or crawler that follows the link would buy something. Checkout belongs behind POST to an /api/orders resource.',
+      'GET is a safe method: it must only read, never change stored state. The last request hides a removal behind a GET, so a crawler or a link prefetcher walking the page would empty the cart without anyone clicking. That removal is already available as DELETE /api/carts/17/items/9, which is the method whose meaning matches the effect.',
     xpReward: 40,
     tags: ['http-methods', 'safety', 'rest']
   },
@@ -70,7 +70,7 @@ export const challenges: Challenge[] = [
   {
     id: 'stage-6-a03',
     stageId: 'stage-6',
-    title: 'Path segments versus query strings',
+    title: 'What the URL API hands back',
     type: 'output_prediction',
     difficulty: 'medium',
     language: 'javascript',
@@ -83,12 +83,12 @@ export const challenges: Challenge[] = [
       'console.log(url.searchParams.get("page") + 1);\n' +
       'console.log(url.searchParams.get("limit"));',
     options: [
-      '/orders/42 then 21 then null',
       '/orders/42 then 3 then null',
       '/orders/42 then 21 then undefined',
+      '/orders/42 then 21 then null',
       'https://api.shop.dev/orders/42 then 3 then null'
     ],
-    correctIndex: 0,
+    correctIndex: 2,
     hints: [
       'Decide what type each getter hands back before you decide whether + adds or joins.',
       'A parameter that is not in the query string still reports a value rather than throwing.'
@@ -192,7 +192,7 @@ export const challenges: Challenge[] = [
       { answer: 'Vary', choices: ['Vary', 'ETag', 'Allow', 'Age'] }
     ],
     hints: [
-      'max-age counts seconds, not days.',
+      'Settle what unit max-age is expressed in before you pick a number for it.',
       'One directive limits who may store the response; a different header names the request headers that shaped it.'
     ],
     explanation:

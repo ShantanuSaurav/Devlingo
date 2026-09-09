@@ -32,8 +32,8 @@ export const challenges: Challenge[] = [
     ],
     correctIndex: 0,
     hints: [
-      'Count how many of the three local places a change passes through are on your own machine.',
-      'Which of these commands talks to the network?'
+      'Name every place git keeps a copy of app.js, then ask which of them git commit writes to.',
+      'Which of the commands shown here contacts the network?'
     ],
     explanation:
       'A change moves through three places on your own machine: the working tree you edit, the index that git add snapshots, and the local repository that git commit writes a commit into. Only git push copies those commits to origin, so a commit on its own is still invisible to everyone else.',
@@ -96,7 +96,7 @@ export const challenges: Challenge[] = [
       'The flag that sets an upstream lets later git push and git pull run with no arguments.'
     ],
     explanation:
-      'git switch -c creates a branch and moves HEAD onto it, the modern spelling of git checkout -b. Pushing with -u records origin/feature/login as the upstream, so later pushes and pulls need no arguments. git branch main would only create a branch called main, it would not move you onto anything.',
+      'git switch -c creates a branch and moves HEAD onto it, the modern spelling of git checkout -b. Pushing with -u records origin/feature/login as the upstream, so later pushes and pulls need no arguments. git branch main would move you nowhere - branch only creates or lists branches, and here it would simply fail because main already exists.',
     xpReward: 40,
     tags: ['git', 'branching', 'remotes']
   },
@@ -120,10 +120,10 @@ export const challenges: Challenge[] = [
       '* 22aa10c C2\n' +
       '* 0f3e771 C1',
     options: [
-      'F1 and F2 are replayed on top of C4 as new commits with new hashes, giving feature a straight line C1-C2-C3-C4-F1-F2',
-      'A new commit appears on feature with two parents, C4 and F2, and F1 and F2 keep their hashes',
-      'main is fast-forwarded onto F2 and the feature branch is deleted',
-      'F1 and F2 keep their original hashes and simply gain C4 as a second parent'
+      'F1 and F2 are replayed on top of C4 as new commits with new hashes, so feature becomes linear',
+      'A new commit with two parents, C4 and F2, is added to feature, and F1 and F2 keep their hashes',
+      'main is fast-forwarded onto F2, so main and feature end up pointing at the same commit',
+      'F1 and F2 keep their original hashes and simply gain C4 as an extra second parent'
     ],
     correctIndex: 0,
     hints: [
@@ -144,12 +144,12 @@ export const challenges: Challenge[] = [
     language: 'pseudocode',
     prompt: 'Order the steps that take a conflicted merge through to a finished merge commit.',
     pseudocodeLines: [
-      'RUN git merge feature AND read the list of conflicted files it prints',
-      'RUN git status TO see which paths are still unmerged',
-      'OPEN a conflicted file AND find the <<<<<<< ======= >>>>>>> markers',
+      'RUN git merge feature AND see it stop with a CONFLICT message',
+      'RUN git status TO list the paths it now marks as both modified',
+      'OPEN the first path from that list AND find the <<<<<<< ======= >>>>>>> markers',
       'EDIT that region into the final content AND delete the three marker lines',
-      'RUN git add on the file TO mark its conflict resolved',
-      'REPEAT until git status reports no unmerged paths',
+      'RUN git add on that same file TO mark its conflict resolved',
+      'REPEAT from the status listing until no unmerged paths are left',
       'RUN git commit TO record the merge commit'
     ],
     hints: [
@@ -208,11 +208,11 @@ export const challenges: Challenge[] = [
     prompt:
       'You are half way through a change on feature when an urgent bug on main has to be fixed. Order the steps.',
     pseudocodeLines: [
-      'RUN git stash push TO park the half-finished changes',
-      'CONFIRM with git status that the working tree is now clean',
-      'RUN git switch main',
-      'FIX the urgent bug AND commit it',
-      'RUN git switch feature',
+      'RUN git stash push TO park the half-finished changes and leave a clean tree',
+      'RUN git switch main, which only succeeds now that nothing is left dangling',
+      'RUN git pull TO update main before building the fix on top of it',
+      'FIX the urgent bug AND commit it on main',
+      'RUN git switch feature TO come back to the parked work',
       'RUN git stash pop TO reapply the parked changes and drop the stash entry'
     ],
     hints: [
@@ -368,8 +368,8 @@ export const challenges: Challenge[] = [
       '  return { added: added, removed: removed };\n' +
       '}',
     hints: [
-      'Print the lines the counter accepts and compare them with the first two lines of the diff.',
-      'Every unified diff opens with two lines that begin with a plus or a minus but are not content.'
+      'Log every line the counter accepts, then ask which of them a reviewer would call a change.',
+      'The hunk header already states the real totals. Your count is bigger, so something outside the hunk body is being counted.'
     ],
     explanation:
       'The two file headers, --- a/path and +++ b/path, start with the same characters as removed and added content lines, so a naive prefix test counts each of them once. Skipping the three-character prefixes first fixes it; context lines are safe already because they begin with a space, which is why " -- users table" is not counted as a deletion.',

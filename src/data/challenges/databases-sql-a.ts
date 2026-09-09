@@ -146,31 +146,34 @@ export const challenges: Challenge[] = [
   {
     id: 'stage-7-a05',
     stageId: 'stage-7',
-    title: 'Which filter goes where',
+    title: 'Keys that link two tables',
     type: 'fill_blank',
     difficulty: 'easy',
     language: 'sql',
     prompt:
-      'Both blanks are filtering clauses. Fill them in so the query lists products ordered more than five times during 2024.',
+      'Fill in the blanks so that orders.customer_id can only ever hold a value that already exists in customers.id.',
     codeSnippet:
-      '-- order_items(product_id, order_year, quantity)\n' +
-      'SELECT product_id, COUNT(*) AS times_ordered\n' +
-      'FROM order_items\n' +
-      '___ order_year = 2024\n' +
-      'GROUP BY product_id\n' +
-      '___ COUNT(*) > 5;',
+      'CREATE TABLE customers (\n' +
+      '  id   INTEGER ___ KEY,\n' +
+      '  name TEXT NOT NULL\n' +
+      ');\n' +
+      '\n' +
+      'CREATE TABLE orders (\n' +
+      '  id          INTEGER PRIMARY KEY,\n' +
+      '  customer_id INTEGER NOT NULL ___ customers(id)\n' +
+      ');',
     blanks: [
-      { answer: 'WHERE', choices: ['WHERE', 'HAVING', 'FILTER'] },
-      { answer: 'HAVING', choices: ['HAVING', 'WHERE', 'QUALIFY'] }
+      { answer: 'PRIMARY', choices: ['PRIMARY', 'FOREIGN', 'SECONDARY'] },
+      { answer: 'REFERENCES', choices: ['REFERENCES', 'MATCHES', 'JOINS'] }
     ],
     hints: [
-      'One of the two tests can be answered by looking at a single order_items row on its own; the other cannot.',
-      'Follow the clause order printed in the query and ask what already exists by the time each filter runs.'
+      'One table has to promise its ids are unique and never missing before another table can safely point at them.',
+      'The second blank declares a foreign key inline, so it is followed by the table and column being pointed at.'
     ],
     explanation:
-      'order_year lives on an individual row, so that test belongs in WHERE, which runs before any bucket is built and keeps the grouping cheap. COUNT(*) does not exist yet at that point, so only HAVING, which runs on finished buckets, can test it - putting an aggregate in WHERE is an error rather than a wrong answer.',
+      'PRIMARY KEY makes customers.id unique and NOT NULL, which is exactly what a second table needs in order to treat it as a stable address. The inline REFERENCES clause turns customer_id into a foreign key, so the database itself rejects an order for a customer that does not exist and refuses to delete a customer that still has orders - integrity enforced by the engine rather than by every application that touches the data.',
     xpReward: 40,
-    tags: ['group-by', 'having', 'where', 'aggregates']
+    tags: ['schema', 'primary-key', 'foreign-key', 'constraints']
   },
   {
     id: 'stage-7-a06',
@@ -191,8 +194,8 @@ export const challenges: Challenge[] = [
       { answer: 'IN', choices: ['IN', '=', 'LIKE'] }
     ],
     hints: [
-      'The keyword that removes duplicate result rows sits right after SELECT.',
-      'The subquery returns many rows, so you need a set membership operator.'
+      'The first blank is optional syntax: leave it out and the query still runs, it just stops promising each name appears once.',
+      'Ask what each of the three operators does when the subquery hands back fifty customer_ids instead of one.'
     ],
     explanation:
       'IN tests membership in the whole set of values the subquery returns, so it works however many customer_ids come back; = only accepts a subquery guaranteed to return exactly one row. IN is a semi-join and so never repeats a customer, which means DISTINCT is earning its place here only for the case where two different customers share a name.',
@@ -243,10 +246,12 @@ export const challenges: Challenge[] = [
     entryFunction: 'innerJoin',
     testCases: [
       {
+        // orders deliberately run against the users order, so walking the
+        // users array instead of the orders array fails this case.
         input:
           '[{ id: 1, name: "Ada" }, { id: 2, name: "Brij" }], ' +
-          '[{ userId: 1, total: 50 }, { userId: 3, total: 20 }, { userId: 2, total: 30 }]',
-        expected: '[{"name": "Ada", "total": 50}, {"name": "Brij", "total": 30}]'
+          '[{ userId: 3, total: 20 }, { userId: 2, total: 30 }, { userId: 1, total: 50 }]',
+        expected: '[{"name": "Brij", "total": 30}, {"name": "Ada", "total": 50}]'
       },
       { input: '[{ id: 1, name: "Ada" }], []', expected: '[]' },
       { input: '[], [{ userId: 1, total: 5 }]', expected: '[]' },
@@ -366,6 +371,12 @@ export const challenges: Challenge[] = [
       {
         input: '[{ dept: "sales", salary: 10 }, { dept: "sales", salary: 15 }], 30',
         expected: '[]'
+      },
+      // "at least minTotal" is inclusive, so a group landing exactly on the
+      // threshold survives while the one a single unit below it does not.
+      {
+        input: '[{ dept: "eng", salary: 30 }, { dept: "ops", salary: 29 }], 30',
+        expected: '[{"dept": "eng", "headcount": 1, "total": 30}]'
       },
       { input: '[], 1', expected: '[]' }
     ],

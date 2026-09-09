@@ -211,16 +211,15 @@ export const challenges: Challenge[] = [
       'A payments endpoint uses an idempotency key so a retried POST never charges twice. Put these pseudocode lines in the correct order.',
     pseudocodeLines: [
       'READ the Idempotency-Key header FROM the request',
-      'IF the key is missing THEN RESPOND 400 AND STOP',
-      'LOOK UP the key IN the saved-response store',
+      'LOOK UP that key IN the saved-response store',
       'IF a saved response EXISTS THEN REPLAY it AND STOP',
-      'CREATE the payment AND capture its new id',
-      'SAVE a 201 status AND a Location header UNDER the key',
+      'CHARGE the card AND capture the new payment id',
+      'SAVE a 201 status AND that payment URL UNDER the key',
       'RESPOND WITH the entry just saved UNDER the key'
     ],
     hints: [
-      'You cannot look a key up before you have read it, and you cannot store a response before the payment it describes exists.',
-      'The whole point is that the second request never reaches the create step.'
+      'Trace a retry that arrives after the first request already succeeded, and mark the one line it must never reach.',
+      'Every step consumes something the step before it produced, from the key itself to the entry that is finally sent back.'
     ],
     explanation:
       'POST is not idempotent on its own, so a retry after a timeout would charge the customer twice. Reading the key first, then checking the store, turns the retry into a lookup that replays the original 201 instead of creating a second payment. Storing the response before sending it means the first caller and every retry are answered from the same entry, so a retry that arrives moments after the payment succeeds still finds a record to replay.',

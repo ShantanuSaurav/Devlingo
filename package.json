@@ -13,7 +13,8 @@
     "typecheck": "tsc --noEmit",
     "content:index": "node scripts/build-index.mjs",
     "content:validate": "node scripts/validate-content.mjs",
-    "check": "npm run content:index && npm run typecheck && npm run content:validate"
+    "check": "npm run content:index && npm run typecheck && npm run content:validate && npm run content:lint",
+    "content:lint": "node scripts/lint-content.mjs"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

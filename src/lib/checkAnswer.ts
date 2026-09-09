@@ -125,6 +125,32 @@ export function shuffleLines(challenge: Challenge): string[] {
   return lines;
 }
 
+/**
+ * The order to DISPLAY a challenge's options in, as original indices.
+ *
+ * Authors overwhelmingly write the correct answer first - across this bank 87%
+ * of single-answer challenges had it at index 0, which makes "always pick A" a
+ * winning strategy. Shuffling at render time fixes every challenge at once and
+ * keeps working for content added later.
+ *
+ * Only the presentation moves: answers are still stored and graded as original
+ * indices, so `checkAnswer` and the server's /api/grade need no knowledge of it.
+ * The permutation is seeded from the challenge id, so it is stable across
+ * re-renders and identical for every learner.
+ */
+export function optionOrder(challenge: Challenge): number[] {
+  const count = challenge.options?.length ?? 0;
+  const order = Array.from({ length: count }, (_, i) => i);
+  if (count < 2) return order;
+
+  const random = seedFrom(`${challenge.id}:options`);
+  for (let i = order.length - 1; i > 0; i--) {
+    const j = Math.floor(random() * (i + 1));
+    [order[i], order[j]] = [order[j], order[i]];
+  }
+  return order;
+}
+
 export function moveItem<T>(items: T[], from: number, to: number): T[] {
   if (from === to || from < 0 || to < 0 || from >= items.length || to >= items.length) return items;
   const next = [...items];

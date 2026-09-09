@@ -88,10 +88,10 @@ export const challenges: Challenge[] = [
       '        labels:\n' +
       '          severity: page',
     options: [
-      'Alert on an aggregate such as the p99 over a five minute window, and require it to stay high with for: 5m',
-      'Lower the threshold to 0.5 so problems are caught sooner',
-      'Raise the threshold to 10 so only genuinely slow requests page',
-      'Change severity to ticket so the rule stops waking anyone up'
+      'Alert on the p99 over a five minute window, and hold it with for: 5m',
+      'Lower the threshold to 0.5 seconds so slow requests are caught sooner',
+      'Raise the threshold to 10 seconds so only truly slow requests page',
+      'Change severity from page to ticket so the rule stops waking anyone'
     ],
     correctIndex: 0,
     hints: [
@@ -267,7 +267,7 @@ export const challenges: Challenge[] = [
     ],
     hints: [
       'A budget should track what travels over the network, not what sits on disk.',
-      'CI decides pass or fail from the exit code, not from what was printed.'
+      'CI decides pass or fail from the status the process returns, not from what it printed.'
     ],
     explanation:
       'Transfer size is what users wait for, so budget the compressed bytes rather than the raw or source-map bytes. Printing to stderr leaves the exit code at 0 and the build stays green, so the check must call process.exit(1) to actually enforce the budget.',

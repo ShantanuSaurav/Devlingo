@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useGame } from '../context/GameContext';
 import { Challenge, ExecutionResult } from '../types';
-import { Answer, checkAnswer, emptyAnswer, isAnswerComplete } from '../lib/checkAnswer';
+import { Answer, checkAnswer, emptyAnswer, isAnswerComplete, optionOrder } from '../lib/checkAnswer';
 import { CodeBlock } from './CodeBlock';
 import { OptionsChallenge } from './challenges/OptionsChallenge';
 import { FillBlankChallenge } from './challenges/FillBlankChallenge';
@@ -196,10 +196,13 @@ export const PracticeModal: React.FC = () => {
 
       if (typing) return;
 
-      // Number keys pick an option on choice-style challenges.
+      // Number keys pick an option on choice-style challenges. They address the
+      // option in the position the learner SEES, so they must go through the
+      // same display permutation the list is rendered with.
       if (!checked && challenge && !isCodeType(challenge) && /^[1-9]$/.test(e.key)) {
-        const index = Number(e.key) - 1;
-        if (challenge.options && index < challenge.options.length) {
+        const position = Number(e.key) - 1;
+        const index = optionOrder(challenge)[position];
+        if (challenge.options && index !== undefined && index < challenge.options.length) {
           e.preventDefault();
           if (challenge.type === 'multi_select') {
             const current = new Set((answer as number[]) ?? []);

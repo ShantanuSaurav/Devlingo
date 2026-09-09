@@ -36,7 +36,7 @@ export const challenges: Challenge[] = [
   {
     id: 'stage-1-a02',
     stageId: 'stage-1',
-    title: 'let versus var in a loop',
+    title: 'Closures over a loop variable',
     type: 'output_prediction',
     difficulty: 'medium',
     language: 'javascript',
@@ -249,7 +249,11 @@ export const challenges: Challenge[] = [
       { input: '[1, 2, 3], 0, 2', expected: '[3, 2, 1]' },
       { input: '["a", "b"], 0, 1', expected: '["b", "a"]' },
       { input: '[5], 0, 0', expected: '[5]' },
-      { input: '[1, 2, 3, 4], 1, 2', expected: '[1, 3, 2, 4]' }
+      { input: '[1, 2, 3, 4], 1, 2', expected: '[1, 3, 2, 4]' },
+      // The prompt forbids mutating the input, so one case has to enforce it.
+      // Writing to a frozen array is a silent no-op, so an in-place solution
+      // hands back the original order and fails here.
+      { input: 'Object.freeze([7, 8, 9]), 0, 2', expected: '[9, 8, 7]' }
     ],
     solutionCode:
       'function swap(arr, i, j) {\n' +

@@ -69,8 +69,9 @@ progress is merged into the account when you sign in.
 | `npm run dev:web` | Web only |
 | `npm run build` | Type-check and build to `dist/` |
 | `npm start` | Serve the built app **and** the API from one process on `:4000` |
-| `npm run check` | Regenerate the index, type-check, validate all content |
-| `npm run content:validate` | Validate challenges only |
+| `npm run check` | Index, type-check, validate and lint all content |
+| `npm run content:validate` | Correctness check: structure + really run every solution |
+| `npm run content:lint` | Quality check: leaked hints, duplicate options, answer bias |
 | `npm run content:index` | Regenerate `src/data/index.ts` after adding a batch |
 
 ## Adding challenges
@@ -86,10 +87,14 @@ npm run check
 ```
 
 `scripts/validate-content.mjs` is not a schema check. It compiles the content,
-verifies structure per type, rejects duplicate ids, and for every JavaScript
-`code_runner` and `debug` challenge it **executes the reference solution against
-every test case** — and separately checks that a `debug` challenge's starter code
-actually fails. A challenge that cannot be solved as written will not pass.
+verifies structure per type, rejects duplicate ids, and for every executable
+challenge it **runs the reference solution against every test case** — and
+separately checks that a `debug` challenge's starter code actually fails. A
+challenge that cannot be solved as written will not pass.
+
+JavaScript runs in a Node VM. Python runs through a local CPython 3 if one is on
+PATH (`python3`, `python` or `py`); if there is none the run says so explicitly
+rather than quietly reporting those challenges as verified.
 
 ## Layout
 

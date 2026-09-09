@@ -13,6 +13,7 @@ import { readdir, mkdir, rm, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { execFileSync } from 'node:child_process';
 import vm from 'node:vm';
 import esbuild from 'esbuild';
 
@@ -150,6 +151,91 @@ function runJsSolution(challenge) {
   return { results };
 }
 
+/* ------------------------------------------------------------ python runner */
+
+let pythonExe = null;
+let pythonProbed = false;
+const pythonStats = { executed: 0, skipped: 0, jsExecuted: 0 };
+
+/** Find a local CPython, once. Returns null when there is none. */
+function findPython() {
+  if (pythonProbed) return pythonExe;
+  pythonProbed = true;
+  for (const candidate of ['python3', 'python', 'py']) {
+    try {
+      const out = execFileSync(candidate, ['-c', 'import sys; print(sys.version_info[0])'], {
+        encoding: 'utf8',
+        stdio: ['ignore', 'pipe', 'ignore'],
+        timeout: 5000
+      });
+      if (out.trim().startsWith('3')) {
+        pythonExe = candidate;
+        return pythonExe;
+      }
+    } catch {
+      /* try the next one */
+    }
+  }
+  return null;
+}
+
+/**
+ * Run a Python solution against its test cases, mirroring what the browser
+ * does: evaluate the source ONCE, then call the entry function per case. That
+ * ordering is what makes a mutable-default-argument bug observable, so it has
+ * to match or a `debug` challenge could look unsolvable here and fine in the app.
+ */
+function runPythonSolution(code, entryFunction, testCases) {
+  const exe = findPython();
+  if (!exe) return { skipped: true };
+
+  const harness = `
+import json, sys, traceback
+_src = json.loads(sys.stdin.readline())
+_cases = json.loads(sys.stdin.readline())
+_ns = {}
+try:
+    exec(_src["code"], _ns)
+except Exception:
+    print(json.dumps({"fatal": traceback.format_exc(limit=1).strip().split("\\n")[-1]}))
+    sys.exit(0)
+
+_fn = _ns.get(_src["entry"])
+if not callable(_fn):
+    print(json.dumps({"fatal": "no function named " + _src["entry"]}))
+    sys.exit(0)
+
+_out = []
+for _tc in _cases:
+    try:
+        _args = eval("(" + _tc + ",)", _ns)
+        _value = _fn(*_args)
+        try:
+            _out.append({"json": json.dumps(_value)})
+        except TypeError:
+            _out.append({"json": json.dumps(repr(_value))})
+    except Exception:
+        _out.append({"error": traceback.format_exc(limit=1).strip().split("\\n")[-1]})
+print(json.dumps({"results": _out}))
+`;
+
+  try {
+    const stdout = execFileSync(exe, ['-c', harness], {
+      input:
+        JSON.stringify({ code, entry: entryFunction }) +
+        '\n' +
+        JSON.stringify(testCases.map((t) => t.input)) +
+        '\n',
+      encoding: 'utf8',
+      timeout: 20000,
+      stdio: ['pipe', 'pipe', 'pipe']
+    });
+    return JSON.parse(stdout.trim().split('\n').pop());
+  } catch (e) {
+    return { fatal: `python harness failed: ${(e.message || String(e)).slice(0, 200)}` };
+  }
+}
+
 /* -------------------------------------------------------------- validation */
 
 function validateChallenge(c, file, seenIds, grading) {
@@ -270,6 +356,7 @@ function validateChallenge(c, file, seenIds, grading) {
     }
 
     if (c.language === 'javascript' && c.solutionCode && c.entryFunction && c.testCases?.length) {
+      pythonStats.jsExecuted++;
       const outcome = runJsSolution(c);
       if (outcome.fatal) {
         err(where, outcome.fatal);
@@ -292,6 +379,44 @@ function validateChallenge(c, file, seenIds, grading) {
           !broken.fatal &&
           broken.results?.every((r) => !r.error && grading.matchesExpected(r.actual, r.tc.expected));
         if (stillPasses) err(where, 'debug starterCode already passes every test - the bug is missing');
+      }
+    }
+
+    if (c.language === 'python' && c.solutionCode && c.entryFunction && c.testCases?.length) {
+      const outcome = runPythonSolution(c.solutionCode, c.entryFunction, c.testCases);
+
+      if (outcome.skipped) {
+        pythonStats.skipped++;
+      } else if (outcome.fatal) {
+        err(where, `python solution failed to run: ${outcome.fatal}`);
+      } else {
+        pythonStats.executed++;
+        outcome.results.forEach((r, i) => {
+          const tc = c.testCases[i];
+          if (r.error) {
+            err(where, `solution threw on ${c.entryFunction}(${tc.input}): ${r.error}`);
+            return;
+          }
+          const actual = JSON.parse(r.json);
+          if (!grading.matchesExpected(actual, tc.expected)) {
+            err(
+              where,
+              `solution returned ${grading.displayValue(actual)} for ` +
+                `${c.entryFunction}(${tc.input}), expected ${tc.expected}`
+            );
+          }
+        });
+
+        if (c.type === 'debug' && c.starterCode) {
+          const broken = runPythonSolution(c.starterCode, c.entryFunction, c.testCases);
+          const stillPasses =
+            !broken.fatal &&
+            !broken.skipped &&
+            broken.results?.every(
+              (r, i) => !r.error && grading.matchesExpected(JSON.parse(r.json), c.testCases[i].expected)
+            );
+          if (stillPasses) err(where, 'debug starterCode already passes every test - the bug is missing');
+        }
       }
     }
   }
@@ -352,6 +477,20 @@ async function main() {
   console.log('  by type:       ' + JSON.stringify(byType));
   console.log('  by difficulty: ' + JSON.stringify(byDifficulty));
   console.log('  by stage:      ' + JSON.stringify(byStage));
+
+  // Say what was actually executed. "All challenges valid" over a set that
+  // silently skipped every Python solution is a claim the run cannot support.
+  console.log(
+    `  executed:      ${pythonStats.jsExecuted} JavaScript solution(s), ${pythonStats.executed} Python`
+  );
+  if (pythonStats.skipped > 0) {
+    console.log(
+      `\n  NOTE: ${pythonStats.skipped} Python challenge(s) were NOT executed - no python3 on PATH.\n` +
+        '        Structure was checked, but their solutions and test cases are unverified here.\n' +
+        '        Install Python 3 to have them run, or rely on the browser (Pyodide) at runtime.'
+    );
+  }
+
 
   if (warnings.length) {
     console.log(`\n${warnings.length} warning(s):`);

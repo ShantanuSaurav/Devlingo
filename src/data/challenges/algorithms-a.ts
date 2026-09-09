@@ -360,7 +360,7 @@ export const challenges: Challenge[] = [
       '}',
     hints: [
       'Keep four regions: settled zeros, settled ones, unexamined, settled twos.',
-      'After swapping a 2 into place the value pulled back from the right has not been examined yet, so mid must not advance.'
+      'Trace [2, 0, 1] by hand. After the first swap, ask whether the value now sitting under mid has been looked at yet.'
     ],
     explanation:
       'The invariant is that everything before low is 0, everything between low and mid is 1, and everything after high is 2, with [mid, high] still unknown. Swapping a 0 forward can only pull back a value that was already classified, so mid advances, but swapping a 2 backward pulls an unexamined value into mid, so mid must stay put and re-test it.',

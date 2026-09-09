@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Challenge } from '../../types';
-import { Answer } from '../../lib/checkAnswer';
+import { Answer, optionOrder } from '../../lib/checkAnswer';
 
 interface Props {
   challenge: Challenge;
@@ -20,6 +20,9 @@ export const OptionsChallenge: React.FC<Props> = ({ challenge, answer, onAnswer,
       : [];
 
   const correctSet = new Set(multi ? challenge.correctIndices ?? [] : [challenge.correctIndex ?? -1]);
+
+  // Display order only - `index` below stays the ORIGINAL index everywhere else.
+  const order = useMemo(() => optionOrder(challenge), [challenge]);
 
   const toggle = (index: number) => {
     if (locked) return;
@@ -43,7 +46,8 @@ export const OptionsChallenge: React.FC<Props> = ({ challenge, answer, onAnswer,
         <p className="challenge-hint-line">Select every answer that applies.</p>
       )}
 
-      {(challenge.options ?? []).map((option, index) => {
+      {order.map((index, position) => {
+        const option = (challenge.options ?? [])[index];
         const isSelected = selected.includes(index);
         const isCorrect = correctSet.has(index);
 
@@ -66,7 +70,7 @@ export const OptionsChallenge: React.FC<Props> = ({ challenge, answer, onAnswer,
             aria-checked={isSelected}
           >
             <span className={`option-letter ${multi ? 'is-box' : ''}`.trim()}>
-              {multi ? (isSelected ? '✓' : '') : String.fromCharCode(65 + index)}
+              {multi ? (isSelected ? '✓' : '') : String.fromCharCode(65 + position)}
             </span>
             <span className="option-text">{option}</span>
             {checked && isCorrect && <span className="option-flag">correct</span>}

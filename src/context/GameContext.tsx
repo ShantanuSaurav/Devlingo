@@ -155,6 +155,13 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     writeJson(STORAGE_KEYS.stats, stats);
   }, [stats]);
 
+  // The session handshake runs once on mount and needs to read progress without
+  // taking it as a dependency, so keep a live handle to it.
+  const statsRef = useRef(stats);
+  useEffect(() => {
+    statsRef.current = stats;
+  }, [stats]);
+
   useEffect(() => {
     if (user) writeJson(STORAGE_KEYS.user, user);
     else remove(STORAGE_KEYS.user);
@@ -229,11 +236,40 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
             const { user: me, progress } = await api.me();
             if (cancelled) return;
             setUser(me);
+
+            // Anything solved while the API was unreachable lives only in this
+            // browser, and the server's copy is behind. Spreading the server
+            // response over local state would delete that work on the next
+            // load, so push the local copy up first and adopt the union.
+            const local = statsRef.current;
+            const serverSolved = new Set(progress.completedChallenges ?? []);
+            const localIsAhead =
+              (local.completedChallenges ?? []).some((id) => !serverSolved.has(id)) ||
+              local.xp > (progress.xp ?? 0);
+
+            let reconciled = progress;
+            if (localIsAhead) {
+              try {
+                reconciled = (await api.mergeProgress(local)).progress;
+              } catch {
+                // Could not reach the server after all - keep the local copy
+                // rather than discarding work.
+                reconciled = {
+                  ...progress,
+                  xp: Math.max(local.xp, progress.xp ?? 0),
+                  completedChallenges: [
+                    ...new Set([...(progress.completedChallenges ?? []), ...(local.completedChallenges ?? [])])
+                  ]
+                };
+              }
+            }
+            if (cancelled) return;
+
             setStats((prev) => ({
               ...prev,
-              ...progress,
-              level: levelFromXp(progress.xp),
-              streak: currentStreak(progress.streak, progress.lastActiveDay),
+              ...reconciled,
+              level: levelFromXp(reconciled.xp),
+              streak: currentStreak(reconciled.streak, reconciled.lastActiveDay),
               isPremium: me.isPremium
             }));
           } catch {

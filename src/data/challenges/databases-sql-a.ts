@@ -96,7 +96,7 @@ export const challenges: Challenge[] = [
     correctIndex: 0,
     hints: [
       'Work post 1 out on its own, then post 2, then add the two totals.',
-      'Nothing in the query relates a comment to a like, so within one post every comment meets every like.'
+      'Read the two ON clauses and ask whether either of them ever mentions both comments and likes.'
     ],
     explanation:
       'A join emits one row per matching pair, and comments and likes are each joined only to posts, never to each other, so inside a post every comment is paired with every like: post 1 gives 2 x 3 = 6 rows and post 2 gives 2 x 2 = 4, for 10. This fan-out is why SUM over two one-to-many joins silently multiplies its input, and why each child table is normally aggregated in its own subquery first.',
@@ -135,8 +135,8 @@ export const challenges: Challenge[] = [
     ],
     correctIndices: [0, 1, 3],
     hints: [
-      'COUNT(*) counts rows; COUNT(column) counts non-NULL values in that column.',
-      'Every aggregate except COUNT(*) skips NULL inputs entirely.'
+      'Read each statement against the four rows in the table rather than against the query text.',
+      'Ask what AVG can possibly do with a rating nobody ever filled in.'
     ],
     explanation:
       'COUNT(*) counts rows while COUNT(rating) counts only non-NULL ratings, so product 10 gives 2 and 1. AVG divides the sum of non-NULL values by how many there were, so product 10 averages 5 / 1 = 5, not 2.5. GROUP BY collapses the four reviews into one row per product_id, so the result has two rows.',
@@ -146,30 +146,31 @@ export const challenges: Challenge[] = [
   {
     id: 'stage-7-a05',
     stageId: 'stage-7',
-    title: 'Group and filter the groups',
+    title: 'Which filter goes where',
     type: 'fill_blank',
     difficulty: 'easy',
     language: 'sql',
-    prompt: 'Fill in the blanks so the query lists products ordered more than five times.',
+    prompt:
+      'Both blanks are filtering clauses. Fill them in so the query lists products ordered more than five times during 2024.',
     codeSnippet:
-      '-- one row per product, only the popular ones\n' +
-      'SELECT product_id, ___(*) AS times_ordered\n' +
+      '-- order_items(product_id, order_year, quantity)\n' +
+      'SELECT product_id, COUNT(*) AS times_ordered\n' +
       'FROM order_items\n' +
-      '___ product_id\n' +
+      '___ order_year = 2024\n' +
+      'GROUP BY product_id\n' +
       '___ COUNT(*) > 5;',
     blanks: [
-      { answer: 'COUNT', choices: ['COUNT', 'SUM', 'TOTAL'] },
-      { answer: 'GROUP BY', choices: ['GROUP BY', 'ORDER BY', 'PARTITION BY'] },
-      { answer: 'HAVING', choices: ['HAVING', 'WHERE', 'FILTER'] }
+      { answer: 'WHERE', choices: ['WHERE', 'HAVING', 'FILTER'] },
+      { answer: 'HAVING', choices: ['HAVING', 'WHERE', 'QUALIFY'] }
     ],
     hints: [
-      'One clause builds the buckets, another one throws buckets away.',
-      'WHERE cannot see an aggregate because it runs before the grouping.'
+      'One of the two tests can be answered by looking at a single order_items row on its own; the other cannot.',
+      'Follow the clause order printed in the query and ask what already exists by the time each filter runs.'
     ],
     explanation:
-      'GROUP BY collapses the rows into one bucket per product_id, COUNT(*) sizes each bucket, and HAVING filters the buckets after the aggregates exist. WHERE runs before grouping, so it cannot reference COUNT(*).',
+      'order_year lives on an individual row, so that test belongs in WHERE, which runs before any bucket is built and keeps the grouping cheap. COUNT(*) does not exist yet at that point, so only HAVING, which runs on finished buckets, can test it - putting an aggregate in WHERE is an error rather than a wrong answer.',
     xpReward: 40,
-    tags: ['group-by', 'having', 'aggregates']
+    tags: ['group-by', 'having', 'where', 'aggregates']
   },
   {
     id: 'stage-7-a06',
@@ -186,7 +187,7 @@ export const challenges: Challenge[] = [
       'FROM customers c\n' +
       'WHERE c.id ___ (SELECT o.customer_id FROM orders o);',
     blanks: [
-      { answer: 'DISTINCT', choices: ['DISTINCT', 'UNIQUE', 'ONLY'] },
+      { answer: 'DISTINCT', choices: ['DISTINCT', 'ALL', 'ONLY'] },
       { answer: 'IN', choices: ['IN', '=', 'LIKE'] }
     ],
     hints: [

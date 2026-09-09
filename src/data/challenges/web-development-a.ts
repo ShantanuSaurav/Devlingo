@@ -3,7 +3,8 @@ import { Challenge } from '../../types';
 /**
  * Stage 05 - Web Development, batch A.
  * DOM querying and mutation, event bubbling and delegation, the event loop,
- * promises, async/await and error handling in asynchronous code.
+ * URL query strings, promises, async/await and error handling in
+ * asynchronous code.
  */
 export const challenges: Challenge[] = [
   {
@@ -29,8 +30,8 @@ export const challenges: Challenge[] = [
     ],
     correctIndex: 0,
     hints: [
-      'One of these APIs predates querySelector and returns an HTMLCollection.',
-      'querySelectorAll takes a snapshot of the document at the moment it runs.'
+      'Some query results keep re-checking the document; others are frozen the moment they are built.',
+      'Two of the options are built from the very same snapshot, so neither can behave differently.'
     ],
     explanation:
       'getElementsByClassName returns a live HTMLCollection that keeps tracking the document, so a newly inserted matching element appears in it automatically. querySelectorAll returns a static NodeList snapshot, querySelector returns a single element, and Array.from copies the snapshot into a plain array.',
@@ -55,7 +56,7 @@ export const challenges: Challenge[] = [
     options: ['ba then 2', 'ab then 2', 'aba then 3', 'ab then 3'],
     hints: [
       'A DOM node can only sit in one place at a time.',
-      'appendChild returns the node it moved, it does not copy anything.'
+      'Ask what happens to whatever was sitting at position 0 once the call finishes.'
     ],
     correctIndex: 0,
     explanation:
@@ -143,7 +144,7 @@ export const challenges: Challenge[] = [
     ],
     hints: [
       'currentTarget is always the list itself, so closest() on it would be useless.',
-      'Node has a method that answers "is this element inside me?".'
+      'The middle blank has to reject a row that came from some other list on the page.'
     ],
     explanation:
       'event.target is the deepest element that was clicked, so closest("li") walks up from there to the row. list.contains(item) rejects rows that came from some other list, and classList.toggle flips the class on or off with one call.',
@@ -192,7 +193,7 @@ export const challenges: Challenge[] = [
     difficulty: 'hard',
     language: 'pseudocode',
     prompt:
-      'Put these pseudocode lines in the order that retries a failing request with exponential backoff and rethrows once the attempts run out.',
+      'Put these pseudocode lines in the order that retries a failing request with exponential backoff, rethrows as soon as the last attempt fails, and never sleeps after that last attempt.',
     pseudocodeLines: [
       'FOR attempt FROM 1 TO maxAttempts',
       '    TRY',
@@ -215,61 +216,49 @@ export const challenges: Challenge[] = [
   {
     id: 'stage-5-a08',
     stageId: 'stage-5',
-    title: 'Model the event loop queues',
+    title: 'Parse a URL query string',
     type: 'code_runner',
     difficulty: 'easy',
     language: 'javascript',
     prompt:
-      'Given tasks tagged "sync", "micro" or "macro", return the names in the order a browser would run them: all synchronous work first, then the whole microtask queue, then the macrotasks. Keep the original order inside each queue.',
+      'Turn a query string into an object of key/value pairs. Drop a leading "?", skip empty segments, give a key written without "=" the value "", split each pair at its FIRST "=" only, and let a repeated key keep its last value.',
     starterCode:
-      'function eventLoopOrder(tasks) {\n' +
+      'function parseQuery(qs) {\n' +
       '  // your code here\n' +
-      '  return [];\n' +
+      '  return {};\n' +
       '}',
-    entryFunction: 'eventLoopOrder',
+    entryFunction: 'parseQuery',
     testCases: [
       {
-        input:
-          '[{ name: "s1", kind: "sync" }, { name: "t1", kind: "macro" }, ' +
-          '{ name: "p1", kind: "micro" }, { name: "s2", kind: "sync" }]',
-        expected: '["s1", "s2", "p1", "t1"]'
+        input: '"?page=2&sort=asc"',
+        expected: '{ "page": "2", "sort": "asc" }'
       },
-      {
-        input: '[{ name: "a", kind: "sync" }, { name: "b", kind: "sync" }]',
-        expected: '["a", "b"]'
-      },
-      {
-        input: '[{ name: "t", kind: "macro" }, { name: "m", kind: "micro" }]',
-        expected: '["m", "t"]'
-      },
-      {
-        input:
-          '[{ name: "t1", kind: "macro" }, { name: "m1", kind: "micro" }, ' +
-          '{ name: "t2", kind: "macro" }, { name: "m2", kind: "micro" }]',
-        expected: '["m1", "m2", "t1", "t2"]'
-      },
-      { input: '[]', expected: '[]' }
+      { input: '"q=hello"', expected: '{ "q": "hello" }' },
+      { input: '""', expected: '{}' },
+      { input: '"?flag&x=1"', expected: '{ "flag": "", "x": "1" }' },
+      { input: '"?a=1&a=2"', expected: '{ "a": "2" }' },
+      { input: '"?next=/a=b"', expected: '{ "next": "/a=b" }' }
     ],
     solutionCode:
-      'function eventLoopOrder(tasks) {\n' +
-      '  const sync = [];\n' +
-      '  const micro = [];\n' +
-      '  const macro = [];\n' +
-      '  for (const task of tasks) {\n' +
-      '    if (task.kind === "sync") sync.push(task.name);\n' +
-      '    else if (task.kind === "micro") micro.push(task.name);\n' +
-      '    else macro.push(task.name);\n' +
+      'function parseQuery(qs) {\n' +
+      '  const out = {};\n' +
+      '  const body = qs.startsWith("?") ? qs.slice(1) : qs;\n' +
+      '  for (const pair of body.split("&")) {\n' +
+      '    if (pair === "") continue;\n' +
+      '    const eq = pair.indexOf("=");\n' +
+      '    if (eq === -1) out[pair] = "";\n' +
+      '    else out[pair.slice(0, eq)] = pair.slice(eq + 1);\n' +
       '  }\n' +
-      '  return sync.concat(micro, macro);\n' +
+      '  return out;\n' +
       '}',
     hints: [
-      'Sort the names into three buckets in one pass, then join the buckets.',
-      'Never reorder inside a bucket - each queue is first in, first out.'
+      'Split the whole string on "&" first, then deal with one pair at a time.',
+      'indexOf tells you where a pair separates; split("=") would cut it everywhere.'
     ],
     explanation:
-      'The event loop is three queues with a fixed priority: the current synchronous script runs to completion, then the microtask queue is drained entirely, then one macrotask is taken. Bucketing in a single pass preserves the arrival order that each queue relies on.',
+      'A query string is a flat list of pairs joined by "&", so parsing is one split followed by a single cut per pair. Cutting at the first "=" by index keeps a value that itself contains "=" intact, a key with no "=" has no value to take, and because each pair simply assigns onto the object a repeated key naturally ends up holding the last value seen.',
     xpReward: 40,
-    tags: ['event-loop', 'microtasks', 'macrotasks']
+    tags: ['url', 'query-string', 'strings']
   },
   {
     id: 'stage-5-a09',
@@ -279,7 +268,7 @@ export const challenges: Challenge[] = [
     difficulty: 'hard',
     language: 'javascript',
     prompt:
-      'chain lists the ancestors of an event target, target first and root last. Each entry has an id, a handler flag saying whether a listener is attached, and a stops flag saying whether that listener calls stopPropagation(). Return the ids of the listeners that actually run, in bubbling order.',
+      'chain lists the event target and then each of its ancestors, target first and root last. Each entry has an id, a handler flag saying whether a listener is attached, and a stops flag saying whether that listener calls stopPropagation(). Return the ids of the listeners that actually run, in bubbling order.',
     starterCode:
       'function bubbleOrder(chain) {\n' +
       '  // your code here\n' +

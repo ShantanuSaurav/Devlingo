@@ -515,15 +515,36 @@ bootstrap()
       console.log('');
     });
 
+    // `node --watch` restarts us before the previous process has released the
+    // socket, so the first bind after an edit usually loses. Exiting on the
+    // first EADDRINUSE turns that into a respawn loop that prints the same
+    // error forever, so wait the old process out before giving up.
+    // Backs off to roughly five seconds in total: long enough to outlast a
+    // watch restart on a slow machine, short enough that a genuinely occupied
+    // port still reports quickly.
+    const BIND_RETRY_MS = [250, 400, 650, 1000, 1400, 1800];
+    let bindAttempt = 0;
+
     server.on('error', (err) => {
-      if (err.code === 'EADDRINUSE') {
-        console.error(
-          `\n  Port ${PORT} is already in use. Stop whatever is on it, or start the API on ` +
-            `another port with API_PORT=4001 npm run dev:api (and set VITE_API_PROXY to match).\n`
-        );
-      } else {
+      if (err.code !== 'EADDRINUSE') {
         console.error('[api] server error:', err);
+        process.exit(1);
       }
+
+      const wait = BIND_RETRY_MS[bindAttempt++];
+      if (wait !== undefined) {
+        // Deliberately NOT unref'd: with no listening socket this timer is the
+        // only thing holding the event loop open, so unref'ing it makes the
+        // process exit silently instead of retrying.
+        setTimeout(() => server.listen(PORT), wait);
+        return;
+      }
+
+      console.error(
+        `\n  Port ${PORT} is still in use after ${BIND_RETRY_MS.length + 1} attempts.\n` +
+          `  Stop whatever is on it, or start the API elsewhere with\n` +
+          `    API_PORT=4001 npm run dev:api   (and set VITE_API_PROXY to match).\n`
+      );
       process.exit(1);
     });
 

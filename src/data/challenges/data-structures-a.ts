@@ -17,7 +17,7 @@ export const challenges: Challenge[] = [
     prompt:
       'A dynamic array doubles its capacity whenever it runs out of room. What is the amortised cost of a single push?',
     codeSnippet:
-      '// Sketch of how a dynamic array grows\n' +
+      '// Sketch of how a dynamic array grows (capacity starts at 1)\n' +
       'function push(arr, value) {\n' +
       '  if (arr.length === arr.capacity) {\n' +
       '    arr.capacity = arr.capacity * 2;\n' +
@@ -202,20 +202,20 @@ export const challenges: Challenge[] = [
     options: [
       'An array gives O(1) lookup by value, so scanning an unsorted array is as fast as a hash map lookup.',
       'A hash map gives average O(1) lookup by key, which beats scanning an array to find a record by id.',
-      'A queue hands back the most recently added item, which is what an undo history needs.',
+      'A JavaScript Map keeps its keys sorted, so iterating it visits keys in ascending order.',
       'A Set is the right structure when the only question you ever ask is whether a value has been seen before.',
-      'A stack hands back the most recently added item, so it fits backtracking and undo.',
+      'Inserting mid-array shifts every later element, while a linked list only re-points the two neighbouring nodes.',
       'Because a hash map is O(1) on average, its worst case is O(1) too.'
     ],
     correctIndices: [1, 3, 4],
     hints: [
       'Arrays are O(1) by index, which is not the same as O(1) by value.',
-      'Ask which end each structure removes from: a queue takes from the front, a stack from the back.'
+      'For each claim ask whether it describes an average, a guarantee, or merely the order things happen to be stored in.'
     ],
     explanation:
-      'Arrays are constant time by index but linear when searching for a value, which is exactly the job a hash map does in average constant time. A Set is a hash map with the values thrown away, so it is ideal for membership tests. A stack is last in first out (undo, backtracking) while a queue is first in first out. Hash map worst case is O(n) when every key collides into one bucket.',
+      'Arrays are constant time by index but linear when searching for a value, which is exactly the job a hash map does in average constant time, and a Set is that hash map with the values thrown away. Contiguous storage is also why inserting mid-array slides everything after the gap along, whereas a linked list node is spliced in by re-pointing its neighbours. A Map iterates in insertion order, not sorted order, and a hash map degrades to O(n) when every key collides into one bucket.',
     xpReward: 110,
-    tags: ['trade-offs', 'hash-map', 'stack', 'queue']
+    tags: ['trade-offs', 'hash-map', 'linked-list', 'set']
   },
   {
     id: 'stage-3-a08',

@@ -26,14 +26,14 @@ export const challenges: Challenge[] = [
       '  return sorted.slice(0, write);\n' +
       '}\n' +
       'console.log(dedupe([1, 1, 2, 2, 2, 3]).join(","));',
-    options: ['1,2,3', '1,2,3,2,2,3', '1,1,2,2,2,3', '1,2,2,3'],
+    options: ['1,2,3', '1,2,3,2,2,3', '1,1,2,2,2,3', '1,1,2'],
     correctIndex: 0,
     hints: [
-      'read scans every element; write marks the next slot to overwrite.',
-      'The tail of the array is left as stale data, which is why slice is there.'
+      'read scans the array; write marks the next slot to overwrite.',
+      'Only a prefix of the array is returned, so track how far write gets.'
     ],
     explanation:
-      'The fast pointer read visits every element and the slow pointer write only advances when a new value is found, so the first write elements hold the distinct values. Everything past write is stale leftover data, and slice(0, write) trims it off.',
+      'The fast pointer read visits every element after the first, and the slow pointer write only advances when a new value is found, so the first write slots end up holding the distinct values. The assignments overwrite the array in place, so slice(0, write) reads back the rewritten prefix, not the original one, and drops the stale tail.',
     xpReward: 70,
     tags: ['two-pointers', 'arrays', 'in-place']
   },
@@ -97,8 +97,8 @@ export const challenges: Challenge[] = [
     ],
     correctIndex: 0,
     hints: [
-      'prefix[i] is the sum of the first i elements, so prefix[0] is 0.',
-      'prefix[r] - prefix[l] covers indices l up to but not including r.'
+      'Each push adds the previous total to the current element, so count how many entries the array ends up with.',
+      'The second log subtracts two prefix entries; work out which slice of nums is left behind.'
     ],
     explanation:
       'The leading 0 is a sentinel that makes prefix[i] mean "sum of the first i elements", so the array grows to [0,3,4,8,9,14]. prefix[4] - prefix[1] is 9 - 3 = 6, the sum of nums[1] through nums[3]; the right end is exclusive.',
@@ -113,7 +113,7 @@ export const challenges: Challenge[] = [
     difficulty: 'medium',
     language: 'javascript',
     prompt:
-      'This returns the length of the shortest subarray whose sum reaches target, or 0 if there is none. Fill in the blanks.',
+      'nums holds positive numbers. This returns the length of the shortest subarray whose sum reaches target, or 0 if there is none. Fill in the blanks.',
     codeSnippet:
       'function shortestAtLeast(nums, target) {\n' +
       '  let left = 0;\n' +
@@ -138,7 +138,7 @@ export const challenges: Challenge[] = [
       'Every element that was added to sum must later be subtracted exactly once, in the order it arrived.'
     ],
     explanation:
-      'The window grows on the right one element per iteration and shrinks from the left while it is still valid, so every element is added once and removed once. Subtract nums[left] before incrementing left, otherwise you remove the wrong element and the running sum drifts.',
+      'The window grows on the right one element per iteration and shrinks from the left while it is still valid, so every element is added once and removed once. Because every number is positive, dropping the leftmost element can only lower the sum, which is what makes shrinking while the sum still reaches target safe. Subtract nums[left] before incrementing left, otherwise you remove the wrong element and the running sum drifts.',
     xpReward: 70,
     tags: ['sliding-window', 'two-pointers', 'arrays']
   },

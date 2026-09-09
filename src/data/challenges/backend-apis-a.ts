@@ -90,8 +90,8 @@ export const challenges: Challenge[] = [
     ],
     correctIndex: 0,
     hints: [
-      'searchParams.get always hands back a string, never a number.',
-      'A parameter that is not in the query string reports a specific empty value.'
+      'Decide what type each getter hands back before you decide whether + adds or joins.',
+      'A parameter that is not in the query string still reports a value rather than throwing.'
     ],
     explanation:
       'pathname is only the path part, so the origin is not included. Query values arrive as text, so "2" + 1 concatenates into "21" instead of adding, and a missing key returns null rather than undefined. Server code must parse query parameters before doing arithmetic on them.',
@@ -115,19 +115,19 @@ export const challenges: Challenge[] = [
       'POST   /api/invoices',
     options: [
       'GET is both safe and idempotent, because every safe method is idempotent as well.',
-      'POST is idempotent because servers deduplicate identical bodies.',
-      'PUT is idempotent: sending it twice leaves the same stored state as sending it once.',
-      'PATCH is always idempotent because it only carries the changed fields.',
-      'DELETE is idempotent even though the second call may answer 404.',
-      'Idempotent means every response must be byte-for-byte identical.'
+      'POST is idempotent because servers deduplicate identical request bodies for you.',
+      'GET is still safe when the server logs the request, because the client did not ask for that write.',
+      'PATCH is always idempotent because it only carries the fields that changed.',
+      'DELETE is idempotent even though the second call may answer 404 instead of 204.',
+      'Idempotent means every repeated response must come back byte-for-byte identical.'
     ],
     correctIndices: [0, 2, 4],
     hints: [
       'Safety is about the first call; idempotency is about the second, third and fourth.',
-      'For each line, ask only what changes on the server when the very same request arrives a second time.'
+      'For each statement ask two things: what the client asked the server to change, and what a second identical request would change on top of that.'
     ],
     explanation:
-      'Safety asks whether the server state changes at all, idempotency asks whether repeating the request changes it any further, so a method that changes nothing on the first call cannot change anything more on the second: safe implies idempotent, while PUT and DELETE show the reverse does not hold. PUT sends a full replacement so retries settle on the same state, and DELETE leaves the resource gone even if the repeat answers 404. A PATCH body such as "add 10 to the balance" moves the state on every retry, nothing deduplicates POST for you, and idempotency constrains the stored state rather than the exact bytes of each response.',
+      'Safety asks whether the client requested a change of state, idempotency asks whether repeating the request changes that state any further, so a method that changes nothing on the first call cannot change anything more on the second: safe implies idempotent, while DELETE shows the reverse does not hold. Safety is judged by the semantics the client invoked and not by every byte the server happens to write, so an access-log row leaves GET safe, and DELETE leaves the resource gone however often it is repeated even if the second call answers 404. A PATCH body such as "add 10 to the balance" moves the state on every retry, nothing deduplicates POST for you, and idempotency constrains the stored state rather than the exact bytes of each response.',
     xpReward: 70,
     tags: ['idempotency', 'safety', 'http-methods']
   },
@@ -317,7 +317,10 @@ export const challenges: Challenge[] = [
       { input: '"v3", "v1, v2"', expected: '200' },
       { input: '"v3", null', expected: '200' },
       { input: '"v3", "*"', expected: '304' },
-      { input: '"v3", "v1, v3"', expected: '304' }
+      { input: '"v3", "v1, v3"', expected: '304' },
+      // A tag has to match whole, not as a substring: searching the raw header
+      // for "v3" would wrongly find it inside "v30" and answer 304.
+      { input: '"v3", "v30, v31"', expected: '200' }
     ],
     solutionCode:
       'function conditionalGet(currentTag, ifNoneMatch) {\n' +
@@ -357,7 +360,11 @@ export const challenges: Challenge[] = [
       { input: '{}, [["a", 3]]', expected: '{"a": 3}' },
       { input: '{}, [["a", 3], ["a", 3]]', expected: '{"a": 3}' },
       { input: '{"a": 10}, [["a", 4], ["b", 2]]', expected: '{"a": 4, "b": 2}' },
-      { input: '{"a": 1}, []', expected: '{"a": 1}' }
+      { input: '{"a": 1}, []', expected: '{"a": 1}' },
+      // The prompt forbids mutating the caller's state, so one case has to
+      // enforce it. Writing to a frozen object is a silent no-op, so an
+      // in-place fix hands back the untouched original and fails here.
+      { input: 'Object.freeze({"a": 5}), [["a", 2], ["b", 1]]', expected: '{"a": 2, "b": 1}' }
     ],
     solutionCode:
       'function applyPuts(state, puts) {\n' +

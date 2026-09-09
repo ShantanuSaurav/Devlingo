@@ -69,7 +69,7 @@ export const challenges: Challenge[] = [
       { answer: 'Assert', choices: ['Arrange', 'Act', 'Assert'] }
     ],
     hints: [
-      'The phase that builds the fixture comes first and the phase that checks the result comes last.'
+      'Each comment labels the single line under it, so ask what that one line does: build data, run the operation under test, or inspect the outcome.'
     ],
     explanation:
       'Arrange builds the world the test needs, act performs exactly one operation on it, and assert checks the result of that operation. Keeping the three separate makes it obvious what the test drives and what it verifies, and a test with two act phases is usually two tests.',
@@ -113,16 +113,16 @@ export const challenges: Challenge[] = [
       'Comparing against the current date, so the test breaks after midnight',
       'Two tests writing to the same database row, with no fixed run order',
       'Sleeping a fixed 200ms instead of waiting for the element to appear',
-      'Asserting one exact expected value instead of a range',
-      'Splitting one long test into three shorter tests',
+      'Seeding the random data generator with the same value on every run',
+      'Sorting a list whose order the database does not guarantee before asserting',
       'Naming the file checkout.spec.js instead of checkout.test.js'
     ],
     correctIndices: [0, 1, 2],
     hints: [
-      'Flakiness comes from anything the test does not control: the clock, shared state, and timing.'
+      'Ask which of these hands control of the result to something the test does not own.'
     ],
     explanation:
-      'Wall-clock time, state shared between tests, and fixed sleeps all let something outside the test change the result between runs. An exact assertion, a shorter test and a different filename are all deterministic, so they fail the same way every time.',
+      'Wall-clock time, state shared between tests, and fixed sleeps all let something outside the test change the result between runs. A fixed seed and a sort before asserting do the opposite - they remove a source of variation - and a filename is not a source of variation at all.',
     xpReward: 70,
     tags: ['flaky-tests', 'testing', 'determinism']
   },

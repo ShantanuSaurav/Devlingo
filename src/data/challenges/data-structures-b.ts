@@ -52,7 +52,9 @@ export const challenges: Challenge[] = [
       '    1   4   9',
     options: ['5 3 1 4 8 9', '1 3 4 5 8 9', '1 4 3 9 8 5', '5 3 8 1 4 9'],
     correctIndex: 0,
-    hints: ['Pre-order visits the node itself before either of its subtrees.'],
+    hints: [
+      'Two of the four listings start at 5, so the real question is what a traversal does immediately after visiting a node.'
+    ],
     explanation:
       'Pre-order is node, left subtree, right subtree, giving 5 3 1 4 8 9. The other listings are in-order (1 3 4 5 8 9), post-order (1 4 3 9 8 5) and level-order (5 3 8 1 4 9).',
     xpReward: 40,
@@ -79,7 +81,7 @@ export const challenges: Challenge[] = [
       '  return node;\n' +
       '}',
     blanks: [
-      { answer: '<', choices: ['<', '>', '<=', '==='] },
+      { answer: '<', choices: ['<', '>', '>=', '==='] },
       { answer: 'right', choices: ['right', 'left', 'next', 'parent'] }
     ],
     hints: [
@@ -242,7 +244,7 @@ export const challenges: Challenge[] = [
       '}',
     hints: [
       'Write down the values of prev and current after the loop finishes.',
-      'The loop only ends when current is null, so current can never be the answer.'
+      'Only one of those two pointers still refers to a real node once the walk is over.'
     ],
     explanation:
       'The loop exits precisely when current is null, so returning current always yields null. The last node visited is left in prev, and that node is the head of the reversed list.',
@@ -335,7 +337,7 @@ export const challenges: Challenge[] = [
     difficulty: 'hard',
     language: 'javascript',
     prompt:
-      'Given a valid binary min-heap stored as an array, remove the root and return the repaired heap array. Move the last element into the root, then sift it down, always swapping with the smaller child. Do not mutate the input.',
+      'Given a valid binary min-heap stored as an array, remove the root and return the repaired heap array. Move the last element into the root, then sift it down, always swapping with the smaller child. An empty input has no root to remove, so return an empty array. Do not mutate the input.',
     starterCode:
       'function extractMin(heap) {\n' +
       '  const h = heap.slice();\n' +

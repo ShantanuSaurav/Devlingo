@@ -51,13 +51,13 @@ export const challenges: Challenge[] = [
       '}',
     options: [
       'Content 320px wide; the element occupies 408px including margins',
-      'Content 272px wide; the element occupies 352px including margins',
       'Content 264px wide; the element occupies 352px including margins',
+      'Content 272px wide; the element occupies 352px including margins',
       'Content 264px wide; the element occupies 320px including margins'
     ],
-    correctIndex: 2,
+    correctIndex: 1,
     hints: [
-      'With border-box, the declared width already contains padding and border.',
+      'Decide first which parts of the box the declared 320px is measuring.',
       'Margins sit outside the border box but still consume space in the parent.'
     ],
     explanation:
@@ -80,13 +80,13 @@ export const challenges: Challenge[] = [
       'console.log(sessionStorage.getItem("missing"));',
     options: [
       'string 11 then undefined',
-      'string 11 then null',
       'number 2 then null',
-      'string 2 then undefined'
+      'string 11 then null',
+      'string 2 then null'
     ],
-    correctIndex: 1,
+    correctIndex: 2,
     hints: [
-      'Web Storage keys and values are always strings.',
+      'The value went in as a number literal - check what comes back out.',
       'Look up what getItem returns for a key that was never set.'
     ],
     explanation:
@@ -180,7 +180,7 @@ export const challenges: Challenge[] = [
       { answer: 'json', choices: ['json', 'parse', 'body', 'toJSON'] }
     ],
     hints: [
-      'fetch only rejects when the request never reached the server.',
+      'A 404 is still a delivered response, so the promise resolves normally.',
       'Reading the body is itself asynchronous and returns a promise.'
     ],
     explanation:
@@ -236,7 +236,7 @@ export const challenges: Challenge[] = [
       'PAINT the losing box first, then paint the winner over it'
     ],
     hints: [
-      'z-index is only ever compared between siblings in the same stacking context.',
+      'z-index is only ever compared inside one stacking context, never across two.',
       'A parent with opacity or transform can trap a huge z-index inside itself.'
     ],
     explanation:

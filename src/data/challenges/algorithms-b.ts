@@ -2,8 +2,8 @@ import { Challenge } from '../../types';
 
 /**
  * Stage 04 - Algorithms & Problem Solving, batch B.
- * Recursion, memoisation and DP, greedy choices, BFS vs DFS,
- * backtracking, and Big-O of nested loops.
+ * Recursion, memoisation and DP, greedy choices, binary search,
+ * BFS vs DFS, backtracking, and Big-O of nested loops.
  */
 export const challenges: Challenge[] = [
   {
@@ -143,29 +143,36 @@ export const challenges: Challenge[] = [
   {
     id: 'stage-4-b05',
     stageId: 'stage-4',
-    title: 'Give the recursion a floor',
+    title: 'Close the binary search window',
     type: 'fill_blank',
     difficulty: 'easy',
     language: 'javascript',
     prompt:
-      'Fill in the blanks so sumTo(n) adds up every whole number from n down to 1 and terminates.',
+      'Fill in the blanks so binarySearch returns the index of target in an ascending array, or -1 when target is absent.',
     codeSnippet:
-      'function sumTo(n) {\n' +
-      '  if (n ___ 0) return 0;\n' +
-      '  return n + sumTo(n ___ 1);\n' +
+      'function binarySearch(sorted, target) {\n' +
+      '  let lo = 0;\n' +
+      '  let hi = sorted.length - 1;\n' +
+      '  while (lo ___ hi) {\n' +
+      '    const mid = Math.floor((lo + hi) / 2);\n' +
+      '    if (sorted[mid] === target) return mid;\n' +
+      '    if (sorted[mid] < target) lo = mid + 1;\n' +
+      '    else hi = ___;\n' +
+      '  }\n' +
+      '  return -1;\n' +
       '}',
     blanks: [
-      { answer: '<=', choices: ['<=', '>', '>=', '!=='] },
-      { answer: '-', choices: ['-', '+', '*', '/'] }
+      { answer: '<=', choices: ['<=', '<', '===', '>'] },
+      { answer: 'mid - 1', choices: ['mid - 1', 'mid', 'mid + 1', 'lo - 1'] }
     ],
     hints: [
-      'Every recursive call must move the argument towards the base case.',
-      'Think about what should happen if someone calls sumTo(-3).'
+      'Picture the moment lo and hi land on the same index: is that element already ruled out?',
+      'Every pass has to make the window strictly smaller, or the loop never ends.'
     ],
     explanation:
-      'The recursive call must shrink n, so it passes n - 1, and the base case has to catch every value at or below 0 so a negative argument still terminates. Testing n > 0 in the guard would return 0 for real work, and using n === 0 would recurse forever on negatives.',
+      'When lo and hi meet there is still one unchecked element at that index, so the guard must be lo <= hi; with lo < hi a target sitting alone in the final window is reported missing. The element at mid has just been compared and ruled out, so the surviving half is everything strictly below it, hi = mid - 1. Leaving mid inside the window keeps lo and hi unchanged on the next pass and the loop spins forever.',
     xpReward: 40,
-    tags: ['recursion', 'base-case', 'termination']
+    tags: ['binary-search', 'divide-and-conquer', 'loops']
   },
   {
     id: 'stage-4-b06',
@@ -215,7 +222,7 @@ export const challenges: Challenge[] = [
     correctIndices: [0, 1, 3],
     hints: [
       'Think about what the frontier of each search looks like at any moment.',
-      'A visited set is what makes cycles harmless for both searches.'
+      'Test each claim twice: once on a deep, narrow graph and once on a shallow, very wide one.'
     ],
     explanation:
       'BFS expands nodes in distance order, so the first time it reaches a node it has used the fewest edges; DFS commits to one branch and may reach a node by a long path first. BFS stores the whole frontier, which is expensive on wide graphs, while DFS stores only the current path. A visited set handles cycles for both, and a plain FIFO queue is enough when every edge costs the same.',

@@ -4,7 +4,8 @@ import { Challenge } from '../../types';
  * Stage 06 - Backend & APIs, batch B.
  * Auth state (sessions vs JWT), password hashing, input validation,
  * middleware ordering, rate limiting, server-side CORS, common OWASP
- * failures (injection, IDOR, mass assignment) and error response design.
+ * failures (injection, IDOR, mass assignment), pagination and error
+ * response design.
  */
 export const challenges: Challenge[] = [
   {
@@ -181,7 +182,7 @@ export const challenges: Challenge[] = [
       'Number("12.5") and Number("abc") both survive Number(); only one of the Number.* predicates rejects both.'
     ],
     explanation:
-      'JSON bodies are attacker-controlled, so every field needs a type check before anything is done with it - calling a regex on a number or an array would throw. RegExp.test returns a plain boolean, and Number.isInteger rejects NaN, 12.5 and Infinity in one test, which Number.isFinite would let through.',
+      'JSON bodies are attacker-controlled, so every field needs a type check before anything is done with it: RegExp.test does not throw on a non-string, it coerces first, so the array ["a@b.dev"] would sail through an email check that looks strict. test returns a plain boolean, and Number.isInteger rejects NaN, 12.5 and Infinity in a single call, where Number.isFinite would accept 12.5.',
     xpReward: 40,
     tags: ['input-validation', 'types', 'defensive-coding']
   },
@@ -270,7 +271,7 @@ export const challenges: Challenge[] = [
       { input: '[0, 0, 1], 2, 1', expected: '[true, true, true]' },
       { input: '[0, 1, 2, 3], 1, 0.5', expected: '[true, false, true, false]' },
       { input: '[], 3, 1', expected: '[]' },
-      { input: '[0, 5], 3, 1', expected: '[true, true]' }
+      { input: '[0, 10, 10, 10, 10], 2, 1', expected: '[true, true, true, false, false]' }
     ],
     solutionCode:
       'function rateLimit(timestamps, capacity, refillPerSecond) {\n' +
@@ -293,8 +294,8 @@ export const challenges: Challenge[] = [
       '  return allowed;\n' +
       '}',
     hints: [
-      'Do not tick a clock forward. Refill lazily: on each request, add the tokens earned since the previous request.',
-      'Math.min against capacity is what stops an idle client from banking unlimited burst.'
+      'No timer is needed. Each request knows how much time has passed since the previous one.',
+      'A client that was idle for an hour must not come back with an hour of burst - the running total needs a ceiling.'
     ],
     explanation:
       'A token bucket is two numbers - the tokens on hand and the time they were last updated - so the refill is computed on demand rather than by a timer. Clamping at capacity caps the burst a returning client may spend at once, while refillPerSecond sets the sustained rate; a rejected request should be answered with 429 and a Retry-After header telling the client when a token will exist.',
@@ -304,56 +305,38 @@ export const challenges: Challenge[] = [
   {
     id: 'stage-6-b09',
     stageId: 'stage-6',
-    title: 'Fix the mass assignment',
+    title: 'The pager skips a page',
     type: 'debug',
     difficulty: 'easy',
     language: 'javascript',
     prompt:
-      'applyProfileUpdate merges a PATCH body into a user record. A tester sent {"role": "admin"} and was promoted. Only name, email and bio may be updated. Fix it without mutating the original user.',
+      'GET /api/orders?page=1&perPage=2 must return the first two orders, because page numbers in this API start at 1. Testers report that page 1 shows the same rows as page 2 used to. Fix pageOf so every page number maps to the right slice.',
     starterCode:
-      'function applyProfileUpdate(user, body) {\n' +
-      '  const next = { ...user };\n' +
-      '  Object.assign(next, body);\n' +
-      '  return next;\n' +
+      'function pageOf(items, page, perPage) {\n' +
+      '  const start = page * perPage;\n' +
+      '  return items.slice(start, start + perPage);\n' +
       '}',
-    entryFunction: 'applyProfileUpdate',
+    entryFunction: 'pageOf',
     testCases: [
-      {
-        input: '{"id": 1, "name": "Ada", "role": "user"}, {"name": "Ada L."}',
-        expected: '{"id": 1, "name": "Ada L.", "role": "user"}'
-      },
-      {
-        input: '{"id": 1, "name": "Ada", "role": "user"}, {"name": "Ada", "role": "admin"}',
-        expected: '{"id": 1, "name": "Ada", "role": "user"}'
-      },
-      {
-        input: '{"id": 2, "name": "Bo", "role": "user", "bio": "hi"}, {"bio": "hey", "id": 99}',
-        expected: '{"id": 2, "name": "Bo", "role": "user", "bio": "hey"}'
-      },
-      {
-        input: '{"id": 3, "name": "Cy", "role": "user"}, {}',
-        expected: '{"id": 3, "name": "Cy", "role": "user"}'
-      }
+      { input: '[10, 20, 30, 40, 50], 1, 2', expected: '[10, 20]' },
+      { input: '[10, 20, 30, 40, 50], 2, 2', expected: '[30, 40]' },
+      { input: '[10, 20, 30, 40, 50], 3, 2', expected: '[50]' },
+      { input: '[10, 20, 30, 40, 50], 4, 2', expected: '[]' },
+      { input: '["a", "b"], 1, 5', expected: '["a", "b"]' }
     ],
     solutionCode:
-      'function applyProfileUpdate(user, body) {\n' +
-      '  const allowed = ["name", "email", "bio"];\n' +
-      '  const next = { ...user };\n' +
-      '  for (const key of allowed) {\n' +
-      '    if (Object.prototype.hasOwnProperty.call(body, key)) {\n' +
-      '      next[key] = body[key];\n' +
-      '    }\n' +
-      '  }\n' +
-      '  return next;\n' +
+      'function pageOf(items, page, perPage) {\n' +
+      '  const start = (page - 1) * perPage;\n' +
+      '  return items.slice(start, start + perPage);\n' +
       '}',
     hints: [
-      'Object.assign copies whatever keys the request happened to contain, not the keys you meant to expose.',
-      'Loop over the fields you allow, not over the fields the client sent.'
+      'Work out by hand what start has to be when the client asks for the very first page.',
+      'The window width is right; it is the offset the page number turns into that is wrong.'
     ],
     explanation:
-      'Object.assign is driven by the attacker\'s keys, so any column the client names - role, id, isVerified - gets written. Inverting the loop to walk a fixed allowlist means an unknown key is simply never read, and checking hasOwnProperty keeps a body that omits a field from overwriting it with undefined.',
+      'A 1-based page number has to be shifted before it becomes a 0-based offset, so the first page starts at index 0, not at perPage - as written, page 1 silently returns page 2 and the first rows are unreachable. slice already clamps a past-the-end range to an empty array and a short final page to whatever is left, so no extra bounds checks are needed.',
     xpReward: 40,
-    tags: ['mass-assignment', 'owasp', 'debugging']
+    tags: ['pagination', 'off-by-one', 'debugging']
   },
   {
     id: 'stage-6-b10',

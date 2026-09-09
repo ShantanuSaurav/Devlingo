@@ -105,7 +105,7 @@ export const challenges: Challenge[] = [
       { answer: 'split', choices: ['split', 'slice', 'splice', 'divide'] }
     ],
     hints: [
-      'Two of these names come from other languages, not from JavaScript.',
+      'Several of these names are borrowed from other languages, and two of the wrong ones are real JavaScript methods that do something else.',
       'The last one turns one string into an array of pieces around a separator.'
     ],
     explanation:
@@ -157,8 +157,8 @@ export const challenges: Challenge[] = [
     options: ['8', '10', '20', '50'],
     correctIndex: 0,
     hints: [
-      '** binds tighter than * and /, which bind tighter than +.',
-      '* and / share a precedence level and are evaluated left to right.'
+      'Four operators appear on that line, and they do not all have the same precedence.',
+      'Work out which single operation runs first, then which two share a level and settle the tie left to right.'
     ],
     explanation:
       'Exponentiation runs first, giving 16. Then * and / run left to right: 3 * 16 is 48 and 48 / 8 is 6. Addition is last, so the result is 2 + 6 = 8. Reading the line strictly left to right instead would give 50.',
@@ -279,21 +279,20 @@ export const challenges: Challenge[] = [
     prompt:
       'Put these pseudocode lines in the order that parses text and falls back to defaults when the text is invalid.',
     pseudocodeLines: [
-      'FUNCTION loadSettings(text)',
-      '    TRY',
-      '        SET data TO PARSE text AS JSON',
-      '        RETURN data',
-      '    CATCH error',
-      '        LOG "settings invalid: " + error.message',
-      '        RETURN the default settings',
-      'END FUNCTION'
+      'TRY',
+      '    SET data TO PARSE text AS JSON',
+      'CATCH error',
+      '    LOG "settings invalid: " + error.message',
+      '    RETURN the default settings',
+      'END TRY',
+      'RETURN data'
     ],
     hints: [
-      'Only the line that can actually fail belongs inside the TRY block.',
-      'A RETURN ends the function, so anything you want logged must come before it.'
+      'Only the line that can actually throw belongs inside the TRY block.',
+      'A RETURN ends the routine, so anything you want logged must come before it.'
     ],
     explanation:
-      'The risky parse and the value that depends on it go in the TRY block; if the parse throws, control jumps straight to CATCH with the error object. The recovery path logs first and then returns the fallback, because a RETURN would end the function before the log could run.',
+      'The parse is the only line that can throw, so it is the only line guarded by TRY; if it fails, control jumps to CATCH with the error object. The recovery path logs before it returns the fallback, because a RETURN would end the routine before the log could run, and the success value is returned after END TRY - the one spot reached only when no error was raised.',
     xpReward: 70,
     tags: ['try-catch', 'error-handling', 'pseudocode']
   },

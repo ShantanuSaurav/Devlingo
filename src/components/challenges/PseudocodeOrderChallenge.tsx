@@ -26,7 +26,9 @@ export const PseudocodeOrderChallenge: React.FC<Props> = ({
   checked,
   locked
 }) => {
-  const lines = (answer as string[]) ?? [];
+  // Defensive, for the same reason as FillBlankChallenge: an answer of the
+  // wrong shape must degrade to an empty list, never throw mid-render.
+  const lines = Array.isArray(answer) ? (answer as string[]) : [];
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [overIndex, setOverIndex] = useState<number | null>(null);
 

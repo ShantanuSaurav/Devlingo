@@ -17,7 +17,11 @@ interface Props {
  */
 export const FillBlankChallenge: React.FC<Props> = ({ challenge, answer, onAnswer, checked, locked }) => {
   const blanks = challenge.blanks ?? [];
-  const values = ((answer as string[]) ?? blanks.map(() => '')).slice();
+  // Defensive: every answer type has a different shape, and a number or null
+  // here used to throw on .slice() and take the whole app down. The modal now
+  // guarantees a matching shape, but this component must not be the thing that
+  // crashes if that guarantee is ever broken again.
+  const values = Array.isArray(answer) ? (answer as string[]).slice() : blanks.map(() => '');
   const wrong = checked ? new Set(wrongPositions(challenge, answer)) : new Set<number>();
 
   const setValue = (index: number, value: string) => {

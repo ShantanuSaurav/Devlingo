@@ -36,6 +36,17 @@ export const PracticeModal: React.FC = () => {
 
   /* ------------------------------------------------------------ per-challenge state */
   const [answer, setAnswer] = useState<Answer>(null);
+  /**
+   * Which challenge `answer` was captured for.
+   *
+   * Resetting the answer in an effect is one render too late: React paints the
+   * NEW challenge with the OLD answer first, and the answer shapes differ per
+   * type. Going from a quiz (a number) to a fill_blank (a string[]) meant the
+   * blanks renderer did `number.slice()` and crashed the whole app. Tracking
+   * ownership lets render fall back to a correctly shaped empty answer, so the
+   * mismatched window never exists.
+   */
+  const [answerFor, setAnswerFor] = useState<string | undefined>(undefined);
   const [checked, setChecked] = useState(false);
   const [isCorrect, setIsCorrect] = useState(false);
   const [attempts, setAttempts] = useState(0);
@@ -57,6 +68,7 @@ export const PracticeModal: React.FC = () => {
   /** Wipe everything that belongs to a single challenge. */
   const resetForChallenge = useCallback((next: Challenge | undefined) => {
     setAnswer(next ? emptyAnswer(next) : null);
+    setAnswerFor(next?.id);
     setChecked(false);
     setIsCorrect(false);
     setAttempts(0);
@@ -75,6 +87,16 @@ export const PracticeModal: React.FC = () => {
     bodyRef.current?.scrollTo({ top: 0 });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [challengeId, resetForChallenge]);
+
+  /**
+   * The answer to actually render and grade. Falls back to a correctly shaped
+   * empty answer during the single render where `answer` still belongs to the
+   * challenge we just navigated away from.
+   */
+  const currentAnswer = useMemo<Answer>(
+    () => (challenge && answerFor === challenge.id ? answer : challenge ? emptyAnswer(challenge) : null),
+    [challenge, answerFor, answer]
+  );
 
   // A fresh stage starts a fresh session summary.
   const stageId = activeStage?.id;
@@ -105,11 +127,11 @@ export const PracticeModal: React.FC = () => {
     const nextAttempts = attempts + 1;
     setAttempts(nextAttempts);
 
-    const correct = checkAnswer(challenge, answer);
+    const correct = checkAnswer(challenge, currentAnswer);
     setIsCorrect(correct);
     setChecked(true);
     if (correct) await award(challenge, nextAttempts);
-  }, [challenge, checked, attempts, answer, award]);
+  }, [challenge, checked, attempts, currentAnswer, award]);
 
   const handleRun = useCallback(async () => {
     if (!challenge || isRunning) return;
@@ -154,11 +176,14 @@ export const PracticeModal: React.FC = () => {
   const handleAnswer = useCallback(
     (next: Answer) => {
       setAnswer(next);
+      // Claim ownership, so the value the learner just entered is the one
+      // rendered and graded rather than being treated as leftover state.
+      setAnswerFor(challenge?.id);
       if (checked && !isCorrect) {
         setChecked(false);
       }
     },
-    [checked, isCorrect]
+    [challenge?.id, checked, isCorrect]
   );
 
   const handleTryAgain = useCallback(() => {
@@ -205,12 +230,12 @@ export const PracticeModal: React.FC = () => {
         if (challenge.options && index !== undefined && index < challenge.options.length) {
           e.preventDefault();
           if (challenge.type === 'multi_select') {
-            const current = new Set((answer as number[]) ?? []);
+            const current = new Set((currentAnswer as number[]) ?? []);
             if (current.has(index)) current.delete(index);
             else current.add(index);
-            setAnswer([...current].sort((a, b) => a - b));
+            handleAnswer([...current].sort((a, b) => a - b));
           } else {
-            setAnswer(index);
+            handleAnswer(index);
           }
         }
         return;
@@ -222,7 +247,7 @@ export const PracticeModal: React.FC = () => {
         if (checked && isCorrect) advance();
         else if (checked) handleTryAgain();
         else if (challenge && isCodeType(challenge)) handleRun();
-        else if (challenge && isAnswerComplete(challenge, answer)) handleCheck();
+        else if (challenge && isAnswerComplete(challenge, currentAnswer)) handleCheck();
       }
     };
 
@@ -257,7 +282,7 @@ export const PracticeModal: React.FC = () => {
   if (!activeStage || !challenge) return null;
 
   const hints = challenge.hints ?? [];
-  const canCheck = isAnswerComplete(challenge, answer);
+  const canCheck = isAnswerComplete(challenge, currentAnswer);
   const alreadySolved = stats.completedChallenges.includes(challenge.id);
   const percent = Math.round(((activeChallengeIndex + (checked && isCorrect ? 1 : 0)) / challenges.length) * 100);
 
@@ -369,7 +394,7 @@ export const PracticeModal: React.FC = () => {
               {challenge.type === 'fill_blank' && (
                 <FillBlankChallenge
                   challenge={challenge}
-                  answer={answer}
+                  answer={currentAnswer}
                   onAnswer={handleAnswer}
                   checked={checked}
                   locked={checked && isCorrect}
@@ -379,7 +404,7 @@ export const PracticeModal: React.FC = () => {
               {challenge.type === 'pseudocode_order' && (
                 <PseudocodeOrderChallenge
                   challenge={challenge}
-                  answer={answer}
+                  answer={currentAnswer}
                   onAnswer={handleAnswer}
                   checked={checked}
                   locked={checked && isCorrect}
@@ -391,7 +416,7 @@ export const PracticeModal: React.FC = () => {
                 challenge.type === 'multi_select') && (
                 <OptionsChallenge
                   challenge={challenge}
-                  answer={answer}
+                  answer={currentAnswer}
                   onAnswer={handleAnswer}
                   checked={checked}
                   locked={checked && isCorrect}
